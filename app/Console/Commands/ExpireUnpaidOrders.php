@@ -21,7 +21,7 @@ class ExpireUnpaidOrders extends Command
         $codTtl = (int) $settings->get('unpaid_cod_ttl_minutes', 0);
 
         $buckets = [
-            ['drivers' => ['fawry', 'myfatoorah'], 'ttl' => $onlineTtl],
+            ['drivers' => ['fawry', 'myfatoorah', 'paymob', 'kashier'], 'ttl' => $onlineTtl],
             ['drivers' => ['bank_transfer'], 'ttl' => $bankTtl],
             ['drivers' => ['cod', 'cash'], 'ttl' => $codTtl],
         ];

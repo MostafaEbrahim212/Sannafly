@@ -12,6 +12,8 @@ class PaymentGatewayManager
         return match ($method->driver) {
             'myfatoorah' => app(MyFatoorahGateway::class),
             'fawry' => app(FawryGateway::class),
+            'paymob' => app(PaymobGateway::class),
+            'kashier' => app(KashierGateway::class),
             'cash', 'bank_transfer', 'cod' => null,
             default => throw new InvalidArgumentException("Unsupported payment driver: {$method->driver}"),
         };

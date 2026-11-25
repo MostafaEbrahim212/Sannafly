@@ -15,6 +15,7 @@ use App\Services\AuditLogger;
 use App\Services\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
 use App\Services\SettingsService;
+use App\Support\ErrorLogger;
 use App\Support\Money;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -79,6 +80,12 @@ class CartCheckoutController extends Controller
                     }
                     if ($pm->driver === 'fawry') {
                         return ! empty($cfg['merchant_code']) && ! empty($cfg['security_key']);
+                    }
+                    if ($pm->driver === 'paymob') {
+                        return ! empty($cfg['api_key']) && ! empty($cfg['integration_id']) && ! empty($cfg['iframe_id']);
+                    }
+                    if ($pm->driver === 'kashier') {
+                        return ! empty($cfg['merchant_id']) && ! empty($cfg['api_key']);
                     }
 
                     return true;
@@ -318,6 +325,8 @@ class CartCheckoutController extends Controller
                 $actorScope
             );
         } catch (\RuntimeException $e) {
+            ErrorLogger::warning('checkout.place_order_failed', $e, $request);
+
             return back()->with('error', $e->getMessage());
         }
 
@@ -347,10 +356,14 @@ class CartCheckoutController extends Controller
         $gateway = $method ? $this->gatewayManager->resolve($method) : null;
 
         if ($gateway && $method) {
+            $returnParams = $method->driver === 'kashier'
+                ? ['driver' => $method->driver]
+                : ['driver' => $method->driver, 'order' => $order->order_number];
+
             $result = $gateway->initiate(
                 $order,
                 $method,
-                route('payments.return', ['driver' => $method->driver, 'order' => $order->order_number]),
+                route('payments.return', $returnParams),
                 route('payments.callback', ['driver' => $method->driver])
             );
 
@@ -373,11 +386,94 @@ class CartCheckoutController extends Controller
                         : __('Order placed!'));
             }
 
+            ErrorLogger::warning('payment.checkout_initiate_failed', $result['error'] ?? 'Online payment initiation failed', $request, [
+                'order_number' => $order->order_number,
+                'driver' => $method->driver,
+                'gateway_response' => $result['raw'] ?? null,
+            ]);
+
             return redirect($confirmationUrl)
                 ->with('error', $result['error'] ?? __('Online payment could not be initiated.'));
         }
 
         return redirect($confirmationUrl)->with('success', __('Order placed successfully!'));
+    }
+
+    public function retryPayment(Request $request, string $orderNumber): mixed
+    {
+        $order = Order::query()
+            ->where('order_number', $orderNumber)
+            ->with(['items', 'paymentMethod'])
+            ->firstOrFail();
+
+        /** @var Customer|null $customer */
+        $customer = Auth::guard('customer')->user();
+        $isOwner = $customer !== null && $order->customer_id !== null && (int) $order->customer_id === (int) $customer->id;
+        $placedInSession = in_array($order->order_number, $request->session()->get('placed_order_numbers', []), true);
+        $hasValidSignature = $request->hasValidSignature();
+
+        if (! ($isOwner || $placedInSession || $hasValidSignature)) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'payment_method_id' => ['nullable', 'integer', 'exists:payment_methods,id'],
+        ]);
+
+        $requestedMethodId = isset($validated['payment_method_id']) ? (int) $validated['payment_method_id'] : null;
+
+        try {
+            $payment = $this->orderService->preparePaymentRetry($order, $requestedMethodId);
+        } catch (\RuntimeException $e) {
+            ErrorLogger::warning('payment.retry_rejected', $e, $request, [
+                'order_number' => $order->order_number,
+            ]);
+
+            return back()->with('error', $e->getMessage());
+        }
+
+        $order = $order->fresh(['paymentMethod']) ?? $order;
+        $method = $order->paymentMethod;
+        $gateway = $method ? $this->gatewayManager->resolve($method) : null;
+
+        if (! $gateway || ! $method) {
+            return back()->with('success', __('Payment method updated successfully.'));
+        }
+
+        $result = $gateway->initiate(
+            $order,
+            $method,
+            route('payments.return', ['driver' => $method->driver, 'order' => $order->order_number]),
+            route('payments.callback', ['driver' => $method->driver])
+        );
+
+        if ($result['success']) {
+            $payment->update([
+                'transaction_reference' => $result['transaction_id'] ?? $result['reference_number'] ?? null,
+                'payload' => $result['raw'] ?? null,
+            ]);
+
+            if (! empty($result['redirect_url'])) {
+                return Inertia::location($result['redirect_url']);
+            }
+
+            return back()->with('success', $result['reference_number']
+                ? __('Payment reference generated: :ref', ['ref' => $result['reference_number']])
+                : __('Payment initiated!'));
+        }
+
+        $payment->update([
+            'status' => 'failed',
+            'payload' => $result['raw'] ?? null,
+        ]);
+
+        ErrorLogger::warning('payment.retry_initiate_failed', $result['error'] ?? 'Online payment initiation failed', $request, [
+            'order_number' => $order->order_number,
+            'driver' => $method->driver,
+            'gateway_response' => $result['raw'] ?? null,
+        ]);
+
+        return back()->with('error', $result['error'] ?? __('Online payment could not be initiated.'));
     }
 
     public function paymentReturn(Request $request, string $driver): RedirectResponse
@@ -486,6 +582,11 @@ class CartCheckoutController extends Controller
         return Inertia::render('Storefront/OrderConfirmation', [
             'order' => $this->formatPublicOrderDto($order),
             'paymentMeta' => $paymentMeta,
+            'paymentMethods' => PaymentMethod::query()
+                ->where('is_active', true)
+                ->where('is_visible', true)
+                ->orderBy('sort_order')
+                ->get(['id', 'name', 'name_ar', 'driver']),
         ]);
     }
 
@@ -565,6 +666,7 @@ class CartCheckoutController extends Controller
             'coupon_code' => $order->coupon_code,
             'created_at' => $order->created_at?->toIso8601String(),
             'payment_method' => $order->paymentMethod ? [
+                'id' => $order->paymentMethod->id,
                 'name' => $order->paymentMethod->name,
                 'name_ar' => $order->paymentMethod->name_ar,
                 'driver' => $order->paymentMethod->driver,

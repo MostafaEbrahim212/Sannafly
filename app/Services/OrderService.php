@@ -362,6 +362,140 @@ class OrderService
         return $this->transitionStatus($order, 'cancelled');
     }
 
+    /**
+     * Prepare an unpaid or failed-payment order for a fresh payment attempt (optionally switching payment method).
+     */
+    public function preparePaymentRetry(Order $order, ?int $paymentMethodId = null): Payment
+    {
+        return DB::transaction(function () use ($order, $paymentMethodId): Payment {
+            $locked = Order::query()
+                ->whereKey($order->id)
+                ->with(['items', 'paymentMethod'])
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($locked->payment_status === 'paid') {
+                throw new RuntimeException(__('This order has already been paid.'));
+            }
+
+            $canRetryPending = $locked->status === 'pending' && in_array($locked->payment_status, ['unpaid', 'failed'], true);
+            $canRetryCancelled = $locked->status === 'cancelled' && $locked->payment_status === 'failed';
+
+            if (! $canRetryPending && ! $canRetryCancelled) {
+                throw new RuntimeException(__('This order is not eligible for payment retry.'));
+            }
+
+            $targetMethod = $locked->paymentMethod;
+            if ($paymentMethodId !== null && $paymentMethodId !== (int) $locked->payment_method_id) {
+                $targetMethod = PaymentMethod::query()->where('is_active', true)->find($paymentMethodId);
+                if (! $targetMethod) {
+                    throw new RuntimeException(__('Selected payment method is not available.'));
+                }
+
+                $netSubtotal = Money::sub((string) $locked->subtotal, (string) $locked->discount_total);
+                $shippingTotal = (string) $locked->shipping_total;
+                $shippingZoneName = $locked->shipping_zone_name;
+                $shippingZoneId = $locked->shipping_zone_id;
+
+                if ($targetMethod->driver === 'cash') {
+                    $shippingTotal = '0.0000';
+                    $shippingZoneName = 'Store Pickup';
+                    $shippingZoneId = null;
+                } elseif ($locked->paymentMethod?->driver === 'cash') {
+                    $city = (string) ($locked->shipping_address['city'] ?? '');
+                    if ($city !== '') {
+                        $shippingCalc = $this->shipping->calculateForCity($city, $netSubtotal);
+                        $shippingTotal = Money::normalize($shippingCalc['rate']);
+                        $shippingZoneId = $shippingCalc['zone']?->id;
+                        $shippingZoneName = $shippingCalc['zone']?->name;
+                    }
+                }
+
+                $grandTotal = Money::add(Money::add($netSubtotal, $shippingTotal), (string) $locked->tax_total);
+
+                $locked->update([
+                    'payment_method_id' => $targetMethod->id,
+                    'shipping_zone_id' => $shippingZoneId,
+                    'shipping_zone_name' => $shippingZoneName,
+                    'shipping_total' => $shippingTotal,
+                    'grand_total' => $grandTotal,
+                ]);
+                $locked->setRelation('paymentMethod', $targetMethod);
+            }
+
+            if (! $targetMethod) {
+                throw new RuntimeException(__('Payment method is not available.'));
+            }
+
+            if ($canRetryCancelled) {
+                foreach ($locked->items as $item) {
+                    $product = Product::query()->whereKey($item->product_id)->lockForUpdate()->first();
+                    $variation = $item->variation_id
+                        ? ProductVariation::query()->whereKey($item->variation_id)->lockForUpdate()->first()
+                        : null;
+
+                    if (! $product || ! $product->hasAvailableStock((int) $item->quantity, $variation)) {
+                        throw new RuntimeException(__('Insufficient stock for :product.', ['product' => $item->product_name]));
+                    }
+
+                    if ($product->track_inventory) {
+                        $this->inventory->adjustStock(
+                            $product,
+                            -(int) $item->quantity,
+                            'reservation',
+                            $variation,
+                            "Re-reserved for payment retry on order {$locked->order_number}",
+                            'Order',
+                            $locked->id
+                        );
+                    }
+                }
+
+                if ($locked->coupon_id) {
+                    $coupon = Coupon::query()->whereKey($locked->coupon_id)->lockForUpdate()->first();
+                    if ($coupon) {
+                        if ($coupon->max_uses !== null && $coupon->used_count >= $coupon->max_uses) {
+                            throw new RuntimeException(__('Coupon usage limit has been reached.'));
+                        }
+                        $coupon->increment('used_count');
+                        $normalizedPhone = preg_replace('/\D+/', '', (string) $locked->customer_phone) ?: null;
+                        CouponRedemption::query()->firstOrCreate(
+                            ['order_id' => $locked->id, 'coupon_id' => $coupon->id],
+                            [
+                                'customer_id' => $locked->customer_id,
+                                'customer_phone' => $normalizedPhone,
+                                'created_at' => now(),
+                            ]
+                        );
+                    }
+                }
+
+                $locked->update([
+                    'status' => 'pending',
+                    'payment_status' => 'unpaid',
+                ]);
+            }
+
+            $payment = Payment::query()->create([
+                'order_id' => $locked->id,
+                'payment_method_id' => $targetMethod->id,
+                'amount' => $locked->grand_total,
+                'currency' => $locked->currency,
+                'status' => 'pending',
+            ]);
+
+            $this->audit->log('payment.retry_initiated', 'Order', $locked->id, null, [
+                'order_number' => $locked->order_number,
+                'payment_id' => $payment->id,
+                'payment_method_id' => $targetMethod->id,
+                'driver' => $targetMethod->driver,
+                'was_cancelled' => $canRetryCancelled,
+            ]);
+
+            return $payment;
+        });
+    }
+
     public function returnOrder(Order $order): Order
     {
         return $this->transitionStatus($order, 'returned');
@@ -399,7 +533,7 @@ class OrderService
 
     private function isOnlineGateway(Order $order): bool
     {
-        return in_array($order->paymentMethod?->driver, ['fawry', 'myfatoorah'], true);
+        return in_array($order->paymentMethod?->driver, ['fawry', 'myfatoorah', 'paymob', 'kashier'], true);
     }
 
     private function scheduleAutoRefundAfterCommit(Order $order): void

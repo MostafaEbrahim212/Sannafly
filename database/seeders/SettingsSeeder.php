@@ -200,6 +200,30 @@ class SettingsSeeder extends Seeder
                 'sort_order' => 5,
                 'config' => ['sandbox' => true, 'merchant_code' => '', 'security_key' => ''],
             ],
+            [
+                'code' => 'paymob',
+                'name' => 'Paymob (Cards / Wallets / ValU)',
+                'name_ar' => 'باي موب (بطاقات / محافظ إلكترونية / فاليو)',
+                'driver' => 'paymob',
+                'description' => 'Pay securely online via Paymob Egypt.',
+                'description_ar' => 'ادفع إلكترونياً بأمان عبر بوابة باي موب مصر.',
+                'is_active' => false,
+                'is_visible' => true,
+                'sort_order' => 6,
+                'config' => ['sandbox' => true, 'api_key' => '', 'integration_id' => '', 'iframe_id' => '', 'hmac_secret' => ''],
+            ],
+            [
+                'code' => 'kashier',
+                'name' => 'Kashier (Cards / Wallets / Meeza)',
+                'name_ar' => 'كاشير (بطاقات / ميزة / محافظ)',
+                'driver' => 'kashier',
+                'description' => 'Pay securely online via Kashier.',
+                'description_ar' => 'ادفع إلكترونياً بأمان عبر بوابة كاشير.',
+                'is_active' => false,
+                'is_visible' => true,
+                'sort_order' => 7,
+                'config' => ['sandbox' => true, 'merchant_id' => '', 'api_key' => ''],
+            ],
         ];
 
         foreach ($paymentMethods as $pm) {

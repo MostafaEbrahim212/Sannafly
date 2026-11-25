@@ -22,8 +22,12 @@ export default function PaymentMethodsIndex({ paymentMethods }: { paymentMethods
             sandbox: Boolean(pm.gateway_meta?.sandbox ?? true),
             country: pm.gateway_meta?.country || 'EGY',
             merchant_code: pm.gateway_meta?.merchant_code || '',
+            merchant_id: pm.gateway_meta?.merchant_id || '',
+            integration_id: pm.gateway_meta?.integration_id || '',
+            iframe_id: pm.gateway_meta?.iframe_id || '',
             api_key: '',
             security_key: '',
+            hmac_secret: '',
             bank_name: pm.gateway_meta?.bank_name || '',
             account_name: pm.gateway_meta?.account_name || '',
             account_number: pm.gateway_meta?.account_number || '',
@@ -53,7 +57,7 @@ export default function PaymentMethodsIndex({ paymentMethods }: { paymentMethods
         });
     };
 
-    const isGateway = (driver: string) => driver === 'myfatoorah' || driver === 'fawry';
+    const isGateway = (driver: string) => ['myfatoorah', 'fawry', 'paymob', 'kashier'].includes(driver);
 
     return (
         <AdminLayout title={t('payment_methods')}>
@@ -68,6 +72,10 @@ export default function PaymentMethodsIndex({ paymentMethods }: { paymentMethods
                             ? pm.gateway_meta?.has_api_key
                             : pm.driver === 'fawry'
                             ? Boolean(pm.gateway_meta?.merchant_code && pm.gateway_meta?.has_security_key)
+                            : pm.driver === 'paymob'
+                            ? Boolean(pm.gateway_meta?.has_api_key && pm.gateway_meta?.integration_id && pm.gateway_meta?.iframe_id)
+                            : pm.driver === 'kashier'
+                            ? Boolean(pm.gateway_meta?.merchant_id && pm.gateway_meta?.has_api_key)
                             : true;
 
                     return (
@@ -259,6 +267,78 @@ export default function PaymentMethodsIndex({ paymentMethods }: { paymentMethods
                                                     value={formState.security_key}
                                                     onChange={(e) => setFormState({ ...formState, security_key: e.target.value })}
                                                     placeholder={configuring.gateway_meta?.has_security_key ? '•••••••• (saved — leave blank to keep)' : 'Enter Security Key'}
+                                                    className="w-full px-3 py-2 rounded-xl border text-sm bg-white font-mono"
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {configuring.driver === 'paymob' && (
+                                        <>
+                                            <div>
+                                                <label className="block text-xs font-semibold mb-1">Paymob API Key</label>
+                                                <input
+                                                    type="password"
+                                                    value={formState.api_key}
+                                                    onChange={(e) => setFormState({ ...formState, api_key: e.target.value })}
+                                                    placeholder={configuring.gateway_meta?.has_api_key ? '•••••••• (saved — leave blank to keep)' : 'Enter Paymob API Key'}
+                                                    className="w-full px-3 py-2 rounded-xl border text-sm bg-white font-mono"
+                                                />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="block text-xs font-semibold mb-1">Integration ID</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formState.integration_id}
+                                                        onChange={(e) => setFormState({ ...formState, integration_id: e.target.value })}
+                                                        placeholder="e.g. 4567890"
+                                                        className="w-full px-3 py-2 rounded-xl border text-sm bg-white font-mono"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-semibold mb-1">Iframe ID</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formState.iframe_id}
+                                                        onChange={(e) => setFormState({ ...formState, iframe_id: e.target.value })}
+                                                        placeholder="e.g. 812345"
+                                                        className="w-full px-3 py-2 rounded-xl border text-sm bg-white font-mono"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-semibold mb-1">HMAC Secret</label>
+                                                <input
+                                                    type="password"
+                                                    value={formState.hmac_secret}
+                                                    onChange={(e) => setFormState({ ...formState, hmac_secret: e.target.value })}
+                                                    placeholder={configuring.gateway_meta?.has_hmac_secret ? '•••••••• (saved — leave blank to keep)' : 'Enter Paymob HMAC Secret'}
+                                                    className="w-full px-3 py-2 rounded-xl border text-sm bg-white font-mono"
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {configuring.driver === 'kashier' && (
+                                        <>
+                                            <div>
+                                                <label className="block text-xs font-semibold mb-1">Kashier Merchant ID (MID)</label>
+                                                <input
+                                                    type="text"
+                                                    value={formState.merchant_id}
+                                                    onChange={(e) => setFormState({ ...formState, merchant_id: e.target.value })}
+                                                    placeholder="e.g. MID-12345-678"
+                                                    className="w-full px-3 py-2 rounded-xl border text-sm bg-white font-mono"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-semibold mb-1">Kashier Payment API Key</label>
+                                                <input
+                                                    type="password"
+                                                    value={formState.api_key}
+                                                    onChange={(e) => setFormState({ ...formState, api_key: e.target.value })}
+                                                    placeholder={configuring.gateway_meta?.has_api_key ? '•••••••• (saved — leave blank to keep)' : 'Enter Payment API Key'}
                                                     className="w-full px-3 py-2 rounded-xl border text-sm bg-white font-mono"
                                                 />
                                             </div>

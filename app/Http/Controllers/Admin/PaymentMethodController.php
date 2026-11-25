@@ -35,8 +35,12 @@ class PaymentMethodController extends Controller
                     'sandbox' => (bool) ($cfg['sandbox'] ?? true),
                     'country' => $cfg['country'] ?? 'EGY',
                     'merchant_code' => $cfg['merchant_code'] ?? '',
+                    'merchant_id' => $cfg['merchant_id'] ?? '',
+                    'integration_id' => $cfg['integration_id'] ?? '',
+                    'iframe_id' => $cfg['iframe_id'] ?? '',
                     'has_api_key' => ! empty($cfg['api_key']),
                     'has_security_key' => ! empty($cfg['security_key']),
+                    'has_hmac_secret' => ! empty($cfg['hmac_secret']),
                     'bank_name' => $cfg['bank_name'] ?? '',
                     'account_name' => $cfg['account_name'] ?? '',
                     'account_number' => $cfg['account_number'] ?? '',
@@ -67,6 +71,10 @@ class PaymentMethodController extends Controller
             'api_key' => ['nullable', 'string', 'max:1000'],
             'merchant_code' => ['nullable', 'string', 'max:120'],
             'security_key' => ['nullable', 'string', 'max:500'],
+            'merchant_id' => ['nullable', 'string', 'max:120'],
+            'integration_id' => ['nullable', 'string', 'max:120'],
+            'iframe_id' => ['nullable', 'string', 'max:120'],
+            'hmac_secret' => ['nullable', 'string', 'max:500'],
             'bank_name' => ['nullable', 'string', 'max:150'],
             'account_name' => ['nullable', 'string', 'max:150'],
             'account_number' => ['nullable', 'string', 'max:100'],
@@ -97,6 +105,33 @@ class PaymentMethodController extends Controller
             }
             if (! empty($data['is_active']) && (empty($newConfig['merchant_code']) || empty($newConfig['security_key']))) {
                 return back()->with('error', __('Please configure Fawry merchant code and security key before enabling it.'));
+            }
+        } elseif ($paymentMethod->driver === 'paymob') {
+            $newConfig['sandbox'] = (bool) ($data['sandbox'] ?? $existingConfig['sandbox'] ?? true);
+            foreach (['integration_id', 'iframe_id'] as $field) {
+                if (array_key_exists($field, $data) && $data[$field] !== null) {
+                    $newConfig[$field] = trim((string) $data[$field]);
+                }
+            }
+            if (! empty($data['api_key'])) {
+                $newConfig['api_key'] = trim($data['api_key']);
+            }
+            if (! empty($data['hmac_secret'])) {
+                $newConfig['hmac_secret'] = trim($data['hmac_secret']);
+            }
+            if (! empty($data['is_active']) && (empty($newConfig['api_key']) || empty($newConfig['integration_id']) || empty($newConfig['iframe_id']))) {
+                return back()->with('error', __('Please configure Paymob API key, Integration ID, and Iframe ID before enabling it.'));
+            }
+        } elseif ($paymentMethod->driver === 'kashier') {
+            $newConfig['sandbox'] = (bool) ($data['sandbox'] ?? $existingConfig['sandbox'] ?? true);
+            if (array_key_exists('merchant_id', $data) && $data['merchant_id'] !== null) {
+                $newConfig['merchant_id'] = trim((string) $data['merchant_id']);
+            }
+            if (! empty($data['api_key'])) {
+                $newConfig['api_key'] = trim($data['api_key']);
+            }
+            if (! empty($data['is_active']) && (empty($newConfig['merchant_id']) || empty($newConfig['api_key']))) {
+                return back()->with('error', __('Please configure Kashier Merchant ID and API key before enabling it.'));
             }
         } elseif ($paymentMethod->driver === 'bank_transfer') {
             foreach (['bank_name', 'account_name', 'account_number', 'iban'] as $field) {
