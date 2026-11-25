@@ -16,6 +16,7 @@ use App\Support\Money;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -347,8 +348,12 @@ class OrderService
         try {
             Notification::route('mail', $order->customer_email)
                 ->notify(new OrderStatusNotification($order, $isNewOrder));
-        } catch (\Throwable) {
-            // Do not fail order placement/update if mail transport is not configured
+        } catch (\Throwable $e) {
+            Log::warning('Failed to dispatch order status notification.', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

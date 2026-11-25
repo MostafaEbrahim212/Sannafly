@@ -3,18 +3,22 @@
 namespace App\Notifications;
 
 use App\Models\Order;
+use App\Support\Money;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class OrderStatusNotification extends Notification
+class OrderStatusNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
     public function __construct(
         public readonly Order $order,
         public readonly bool $isNewOrder = false,
-    ) {}
+    ) {
+        $this->afterCommit();
+    }
 
     public function via(object $notifiable): array
     {
@@ -37,7 +41,7 @@ class OrderStatusNotification extends Notification
             $mail->line("Your order **{$this->order->order_number}** status is now **".strtoupper($this->order->status).'**.');
         }
 
-        $mail->line('Total: '.number_format((float) $this->order->grand_total, 2)." {$this->order->currency}")
+        $mail->line('Total: '.Money::toGateway((string) $this->order->grand_total)." {$this->order->currency}")
             ->line('Payment Status: '.ucfirst($this->order->payment_status))
             ->action('Track Your Order', url("/orders/confirmation/{$this->order->order_number}"))
             ->line('Thank you for shopping with us!');

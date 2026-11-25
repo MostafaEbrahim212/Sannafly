@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,6 +36,8 @@ class RoleController extends Controller
             'permission_ids.*' => ['integer', 'exists:permissions,id'],
         ]);
 
+        $this->ensureActorCanAssignPermissions($request->user(), $data['permission_ids'] ?? []);
+
         DB::transaction(function () use ($data) {
             $role = Role::query()->create([
                 'name' => $data['name'],
@@ -52,12 +55,18 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role): RedirectResponse
     {
+        if ($role->slug === 'super-admin' && ! $request->user()->isSuperAdmin()) {
+            abort(403, __('Only a Super Admin can modify the Super Admin role.'));
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique('roles', 'name')->ignore($role->id)],
             'description' => ['nullable', 'string', 'max:255'],
             'permission_ids' => ['array'],
             'permission_ids.*' => ['integer', 'exists:permissions,id'],
         ]);
+
+        $this->ensureActorCanAssignPermissions($request->user(), $data['permission_ids'] ?? []);
 
         DB::transaction(function () use ($role, $data) {
             $oldPerms = $role->permissions()->pluck('permissions.id')->all();
@@ -92,5 +101,19 @@ class RoleController extends Controller
         });
 
         return back()->with('success', __('Role deleted.'));
+    }
+
+    private function ensureActorCanAssignPermissions(User $actor, array $permissionIds): void
+    {
+        if ($actor->isSuperAdmin() || empty($permissionIds)) {
+            return;
+        }
+
+        $requestedSlugs = Permission::query()->whereIn('id', $permissionIds)->pluck('slug')->all();
+        foreach ($requestedSlugs as $slug) {
+            if (! $actor->hasPermission($slug)) {
+                abort(403, __('You cannot grant permissions you do not hold.'));
+            }
+        }
     }
 }

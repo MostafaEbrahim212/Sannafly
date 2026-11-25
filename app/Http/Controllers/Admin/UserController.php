@@ -67,6 +67,8 @@ class UserController extends Controller
             'role_ids.*' => ['integer', 'exists:roles,id'],
         ]);
 
+        $this->guardSuperAdminRoleAssignment($request->user(), null, $data['role_ids'] ?? []);
+
         $user = DB::transaction(function () use ($data) {
             $user = User::query()->create([
                 'name' => $data['name'],
@@ -108,6 +110,30 @@ class UserController extends Controller
             'direct_permissions.*.id' => ['integer', 'exists:permissions,id'],
             'direct_permissions.*.type' => [Rule::in(['allow', 'deny'])],
         ]);
+
+        $actor = $request->user();
+        if (array_key_exists('role_ids', $data)) {
+            $this->guardSuperAdminRoleAssignment($actor, $user, $data['role_ids'] ?? []);
+
+            $superRoleId = Role::query()->where('slug', 'super-admin')->value('id');
+            $wasSuper = $superRoleId && $user->roles()->where('roles.id', $superRoleId)->exists();
+            $willBeSuper = $superRoleId && in_array((int) $superRoleId, array_map('intval', $data['role_ids'] ?? []), true);
+            if ($wasSuper && (! $willBeSuper || $data['status'] !== 'active') && $this->activeSuperAdminCount() <= 1) {
+                return back()->with('error', __('Cannot remove or deactivate the last Super Admin.'));
+            }
+        } elseif ($user->isSuperAdmin() && $data['status'] !== 'active' && $this->activeSuperAdminCount() <= 1) {
+            return back()->with('error', __('Cannot remove or deactivate the last Super Admin.'));
+        }
+
+        if (array_key_exists('direct_permissions', $data) && ! $actor->isSuperAdmin()) {
+            $permIds = array_column($data['direct_permissions'] ?? [], 'id');
+            $slugs = Permission::query()->whereIn('id', $permIds)->pluck('slug')->all();
+            foreach ($slugs as $slug) {
+                if (! $actor->hasPermission($slug)) {
+                    abort(403, __('You cannot grant permissions you do not hold.'));
+                }
+            }
+        }
 
         DB::transaction(function () use ($user, $data) {
             $old = $user->only(['name', 'email', 'phone', 'status']);
@@ -151,6 +177,10 @@ class UserController extends Controller
 
         if ($user->isSuperAdmin() && ! $request->user()->isSuperAdmin()) {
             abort(403);
+        }
+
+        if ($user->isSuperAdmin() && $this->activeSuperAdminCount() <= 1) {
+            return back()->with('error', __('Cannot delete the last Super Admin.'));
         }
 
         DB::transaction(function () use ($user) {
@@ -210,5 +240,32 @@ class UserController extends Controller
         }
 
         return $value;
+    }
+
+    private function guardSuperAdminRoleAssignment(User $actor, ?User $target, array $newRoleIds): void
+    {
+        if ($actor->isSuperAdmin()) {
+            return;
+        }
+
+        $superRoleId = Role::query()->where('slug', 'super-admin')->value('id');
+        if (! $superRoleId) {
+            return;
+        }
+
+        $newHasSuper = in_array((int) $superRoleId, array_map('intval', $newRoleIds), true);
+        $oldHasSuper = $target ? $target->roles()->where('roles.id', $superRoleId)->exists() : false;
+
+        if ($newHasSuper !== $oldHasSuper) {
+            abort(403, __('Only a Super Admin can grant or revoke the Super Admin role.'));
+        }
+    }
+
+    private function activeSuperAdminCount(): int
+    {
+        return User::query()
+            ->where('status', 'active')
+            ->whereHas('roles', fn ($q) => $q->where('slug', 'super-admin'))
+            ->count();
     }
 }

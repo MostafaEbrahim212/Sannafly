@@ -6,14 +6,19 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
+use App\Models\Permission;
 use App\Models\PriceType;
 use App\Models\Product;
 use App\Models\ProductPrice;
 use App\Models\ProductVariation;
+use App\Models\Role;
+use App\Models\User;
+use App\Notifications\OrderStatusNotification;
 use App\Services\AuditLogger;
 use App\Services\OrderService;
 use Database\Seeders\RbacSeeder;
 use Database\Seeders\SettingsSeeder;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
@@ -387,4 +392,56 @@ it('sets CSP report-only and Cross-Origin-Opener-Policy headers and only sets HS
     app()->detectEnvironment(fn () => 'production');
     $prodHttps = $this->get('https://localhost/');
     $prodHttps->assertHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+});
+
+it('prevents non-super-admin from granting super-admin role, escalating permissions, or removing last super-admin', function () {
+    $superRole = Role::query()->where('slug', 'super-admin')->firstOrFail();
+    $userEditPerm = Permission::query()->where('slug', 'users.edit')->firstOrFail();
+    $manageRolesPerm = Permission::query()->where('slug', 'users.manage_roles')->firstOrFail();
+    $unheldPerm = Permission::query()->where('slug', 'settings.manage')->firstOrFail();
+
+    $limitedRole = Role::query()->create([
+        'name' => 'Limited Admin',
+        'slug' => 'limited-admin',
+        'is_system' => false,
+    ]);
+    $limitedRole->permissions()->sync([$userEditPerm->id, $manageRolesPerm->id]);
+
+    $limitedAdmin = User::query()->create([
+        'name' => 'Limited Admin',
+        'email' => 'limited@example.com',
+        'password' => 'Password123',
+        'status' => 'active',
+    ]);
+    $limitedAdmin->roles()->sync([$limitedRole->id]);
+
+    $superAdmin = User::query()->whereHas('roles', fn ($q) => $q->where('slug', 'super-admin'))->firstOrFail();
+
+    // 1. Non-super-admin cannot grant super-admin role to self
+    $this->actingAs($limitedAdmin)->put("/admin/users/{$limitedAdmin->id}", [
+        'name' => $limitedAdmin->name,
+        'email' => $limitedAdmin->email,
+        'status' => 'active',
+        'role_ids' => [$limitedRole->id, $superRole->id],
+    ])->assertForbidden();
+    expect($limitedAdmin->fresh()->isSuperAdmin())->toBeFalse();
+
+    // 2. Non-super-admin cannot grant permissions they do not hold via role editor
+    $this->actingAs($limitedAdmin)->post('/admin/roles', [
+        'name' => 'Escalated Role',
+        'permission_ids' => [$unheldPerm->id],
+    ])->assertForbidden();
+
+    // 3. Even super-admin cannot remove the last super-admin
+    $this->actingAs($superAdmin)->put("/admin/users/{$superAdmin->id}", [
+        'name' => $superAdmin->name,
+        'email' => $superAdmin->email,
+        'status' => 'active',
+        'role_ids' => [$limitedRole->id],
+    ])->assertSessionHas('error');
+    expect($superAdmin->fresh()->isSuperAdmin())->toBeTrue();
+});
+
+it('queues OrderStatusNotification as ShouldQueue', function () {
+    expect(is_subclass_of(OrderStatusNotification::class, ShouldQueue::class))->toBeTrue();
 });
