@@ -310,3 +310,80 @@ it('does not silently confirm a cancelled order when a late completed callback a
     expect($payment->fresh()->status)->toBe('needs_review');
     expect(AuditLog::query()->where('action', 'payment.completed_after_cancel')->where('resource_id', (string) $order->id)->exists())->toBeTrue();
 });
+
+it('expires only eligible unpaid online orders and releases stock exactly once', function () {
+    $regular = \App\Models\PriceType::query()->where('slug', 'regular')->firstOrFail();
+    $fawry = PaymentMethod::query()->where('driver', 'fawry')->firstOrFail();
+    $fawry->update(['is_active' => true]);
+    $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
+
+    $product = \App\Models\Product::query()->create([
+        'name' => 'Mouse',
+        'slug' => 'mouse',
+        'sku' => 'MOUSE-1',
+        'status' => 'published',
+        'visibility' => 'public',
+        'stock_quantity' => 10,
+        'track_inventory' => true,
+    ]);
+    \App\Models\ProductPrice::query()->create([
+        'product_id' => $product->id,
+        'price_type_id' => $regular->id,
+        'amount' => '100.0000',
+        'currency' => 'EGP',
+        'min_quantity' => 1,
+    ]);
+
+    /** @var \App\Services\OrderService $orders */
+    $orders = app(\App\Services\OrderService::class);
+
+    // 1. Eligible: unpaid Fawry order created 90 minutes ago
+    $expiredOrder = $orders->placeOrder(
+        ['customer_name' => 'Expired', 'customer_phone' => '01011111111'],
+        [['product_id' => $product->id, 'quantity' => 2]],
+        $fawry->id
+    );
+    Order::query()->where('id', $expiredOrder->id)->update(['created_at' => now()->subMinutes(90)]);
+
+    // 2. Skip: recent unpaid Fawry order (10 minutes ago)
+    $recentOrder = $orders->placeOrder(
+        ['customer_name' => 'Recent', 'customer_phone' => '01022222222'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $fawry->id
+    );
+    Order::query()->where('id', $recentOrder->id)->update(['created_at' => now()->subMinutes(10)]);
+
+    // 3. Skip: old COD order (90 minutes ago)
+    $codOrder = $orders->placeOrder(
+        ['customer_name' => 'COD', 'customer_phone' => '01033333333'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id
+    );
+    Order::query()->where('id', $codOrder->id)->update(['created_at' => now()->subMinutes(90)]);
+
+    // 4. Skip: old paid Fawry order
+    $paidOrder = $orders->placeOrder(
+        ['customer_name' => 'Paid', 'customer_phone' => '01044444444'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $fawry->id
+    );
+    Order::query()->where('id', $paidOrder->id)->update([
+        'created_at' => now()->subMinutes(90),
+        'payment_status' => 'paid',
+        'status' => 'confirmed',
+    ]);
+
+    expect($product->fresh()->stock_quantity)->toBe(5);
+
+    $this->artisan('orders:expire-unpaid')->assertExitCode(0);
+
+    expect($expiredOrder->fresh()->status)->toBe('cancelled');
+    expect($recentOrder->fresh()->status)->toBe('pending');
+    expect($codOrder->fresh()->status)->toBe('pending');
+    expect($paidOrder->fresh()->status)->toBe('confirmed');
+    expect($product->fresh()->stock_quantity)->toBe(7);
+
+    // Running twice must be a no-op
+    $this->artisan('orders:expire-unpaid')->assertExitCode(0);
+    expect($product->fresh()->stock_quantity)->toBe(7);
+});

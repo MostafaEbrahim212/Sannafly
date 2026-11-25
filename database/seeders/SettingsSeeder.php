@@ -65,6 +65,11 @@ class SettingsSeeder extends Seeder
             ['products', 'image_thumb_width', 400, 'integer', false],
             ['products', 'image_quality', 85, 'integer', false],
 
+            // Orders & Expiry
+            ['orders', 'unpaid_online_ttl_minutes', 60, 'integer', false],
+            ['orders', 'unpaid_bank_transfer_ttl_minutes', 1440, 'integer', false],
+            ['orders', 'unpaid_cod_ttl_minutes', 0, 'integer', false],
+
             // SEO
             ['seo', 'meta_title', 'Sannafly — صنّفلي | Categorize. Display. Sell.', 'string', true],
             ['seo', 'meta_description', 'Categorize your products. Display them beautifully. Sell faster.', 'string', true],
