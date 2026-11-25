@@ -4,6 +4,7 @@ namespace App\Services\Payments;
 
 use App\Models\Order;
 use App\Models\PaymentMethod;
+use App\Support\Money;
 use Illuminate\Support\Facades\Http;
 
 class MyFatoorahGateway implements PaymentGatewayInterface
@@ -32,7 +33,7 @@ class MyFatoorahGateway implements PaymentGatewayInterface
                 'CustomerName' => $order->customer_name,
                 'CustomerMobile' => preg_replace('/\D/', '', $order->customer_phone) ?: '0000000000',
                 'CustomerEmail' => $order->customer_email ?: 'customer@example.com',
-                'InvoiceValue' => round((float) $order->grand_total, 2),
+                'InvoiceValue' => Money::toGateway((string) $order->grand_total),
                 'DisplayCurrencyIso' => $currency,
                 'CallBackUrl' => $returnUrl,
                 'ErrorUrl' => $returnUrl,
@@ -84,12 +85,17 @@ class MyFatoorahGateway implements PaymentGatewayInterface
 
         $data = $json['Data'] ?? [];
         $invoiceStatus = strtolower((string) ($data['InvoiceStatus'] ?? ''));
+        $rawAmount = $data['InvoiceValue'] ?? null;
+        $amount = $rawAmount !== null && $rawAmount !== '' ? Money::toGateway((string) $rawAmount) : null;
+        $currency = $data['DisplayCurrencyIso'] ?? $data['InvoiceTransactions'][0]['Currency'] ?? null;
 
         return [
             'verified' => true,
             'order_number' => $data['CustomerReference'] ?? null,
             'transaction_id' => isset($data['InvoiceId']) ? (string) $data['InvoiceId'] : (string) $paymentId,
             'status' => $invoiceStatus === 'paid' ? 'completed' : ($invoiceStatus === 'pending' ? 'pending' : 'failed'),
+            'amount' => $amount,
+            'currency' => is_string($currency) && trim($currency) !== '' ? strtoupper(trim($currency)) : null,
             'raw' => $data,
         ];
     }

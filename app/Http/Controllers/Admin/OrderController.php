@@ -44,7 +44,7 @@ class OrderController extends Controller
     {
         $data = $request->validate([
             'status' => ['required', Rule::in(array_keys(OrderService::ALLOWED_TRANSITIONS))],
-            'payment_status' => ['nullable', Rule::in(['unpaid', 'paid', 'partially_refunded', 'refunded', 'failed'])],
+            'payment_status' => ['nullable', Rule::in(Order::PAYMENT_STATUSES)],
         ]);
 
         try {

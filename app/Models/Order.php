@@ -11,6 +11,17 @@ class Order extends Model
 {
     use SoftDeletes;
 
+    public const PAYMENT_STATUSES = [
+        'unpaid',
+        'paid',
+        'partially_refunded',
+        'refunded',
+        'refund_pending',
+        'failed',
+        'amount_mismatch',
+        'needs_review',
+    ];
+
     protected $fillable = [
         'order_number',
         'user_id',

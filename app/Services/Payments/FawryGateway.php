@@ -4,6 +4,7 @@ namespace App\Services\Payments;
 
 use App\Models\Order;
 use App\Models\PaymentMethod;
+use App\Support\Money;
 use Illuminate\Support\Facades\Http;
 
 class FawryGateway implements PaymentGatewayInterface
@@ -28,7 +29,7 @@ class FawryGateway implements PaymentGatewayInterface
         $merchantRefNum = $order->order_number;
         $customerProfileId = (string) ($order->user_id ?? 'guest');
         $paymentMethod = 'PAYATFAWRY';
-        $amountFormatted = number_format((float) $order->grand_total, 2, '.', '');
+        $amountFormatted = Money::toGateway((string) $order->grand_total);
 
         $signature = hash('sha256', $merchantCode.$merchantRefNum.$customerProfileId.$paymentMethod.$amountFormatted.$securityKey);
 
@@ -84,8 +85,8 @@ class FawryGateway implements PaymentGatewayInterface
 
         $fawryRef = (string) ($payload['fawryRefNumber'] ?? '');
         $merchantRef = (string) ($payload['merchantRefNumber'] ?? '');
-        $paymentAmount = number_format((float) ($payload['paymentAmount'] ?? 0), 2, '.', '');
-        $orderAmount = number_format((float) ($payload['orderAmount'] ?? 0), 2, '.', '');
+        $paymentAmount = Money::toGateway((string) ($payload['paymentAmount'] ?? '0'));
+        $orderAmount = Money::toGateway((string) ($payload['orderAmount'] ?? '0'));
         $orderStatus = (string) ($payload['orderStatus'] ?? '');
         $paymentMethod = (string) ($payload['paymentMethod'] ?? '');
         $paymentRefCode = (string) ($payload['paymentRefrenceCode'] ?? '');
@@ -111,6 +112,8 @@ class FawryGateway implements PaymentGatewayInterface
             'order_number' => $merchantRef,
             'transaction_id' => $fawryRef ?: $paymentRefCode,
             'status' => $normalized,
+            'amount' => $paymentAmount,
+            'currency' => strtoupper(trim((string) ($payload['currencyCode'] ?? 'EGP'))) ?: 'EGP',
             'raw' => $payload,
         ];
     }

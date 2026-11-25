@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Coupon;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
@@ -13,6 +14,7 @@ use App\Services\AuditLogger;
 use App\Services\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
 use App\Services\SettingsService;
+use App\Support\Money;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -39,7 +41,7 @@ class CartCheckoutController extends Controller
         }
 
         $cart = $request->session()->get('cart', []);
-        /** @var \App\Models\Customer|null $customer */
+        /** @var Customer|null $customer */
         $customer = Auth::guard('customer')->user();
 
         $subtotal = collect($cart)->sum(fn ($item) => ((float) $item['unit_price']) * ((int) $item['quantity']));
@@ -75,10 +77,12 @@ class CartCheckoutController extends Controller
                     if ($pm->driver === 'fawry') {
                         return ! empty($cfg['merchant_code']) && ! empty($cfg['security_key']);
                     }
+
                     return true;
                 })
                 ->map(function (PaymentMethod $pm) {
                     $cfg = $pm->config ?? [];
+
                     return [
                         'id' => $pm->id,
                         'name' => $pm->name,
@@ -321,11 +325,20 @@ class CartCheckoutController extends Controller
         if ($gateway) {
             $verified = $gateway->verifyCallback($request->all(), $method);
             if ($verified['verified'] && ! empty($verified['order_number'])) {
-                $this->applyPaymentOutcome($verified['order_number'], $verified['status'], $verified['transaction_id'] ?? null, $verified['raw'] ?? []);
+                $outcome = $this->applyPaymentOutcome(
+                    $verified['order_number'],
+                    $verified['status'],
+                    $verified['transaction_id'] ?? null,
+                    $verified['amount'] ?? null,
+                    $verified['currency'] ?? null,
+                    $verified['raw'] ?? []
+                );
+
+                $isConfirmed = $outcome === 'paid';
 
                 return redirect()->route('orders.confirmation', $verified['order_number'])
-                    ->with($verified['status'] === 'completed' ? 'success' : 'error',
-                        $verified['status'] === 'completed' ? __('Payment confirmed!') : __('Payment was not completed.'));
+                    ->with($isConfirmed ? 'success' : 'error',
+                        $isConfirmed ? __('Payment confirmed!') : __('Payment was not completed.'));
             }
         }
 
@@ -350,14 +363,17 @@ class CartCheckoutController extends Controller
             return response()->json(['status' => 'invalid_signature'], 403);
         }
 
-        $this->applyPaymentOutcome(
+        $outcome = $this->applyPaymentOutcome(
             $verified['order_number'],
             $verified['status'],
             $verified['transaction_id'] ?? null,
+            $verified['amount'] ?? null,
+            $verified['currency'] ?? null,
             $verified['raw'] ?? []
         );
 
-        return response()->json(['status' => 'ok']);
+        // Return 200 even on terminal mismatches/out-of-order callbacks to stop gateways from endlessly retrying.
+        return response()->json(['status' => $outcome === 'amount_mismatch' || $outcome === 'needs_review' ? 'flagged_for_review' : 'ok']);
     }
 
     public function confirmation(string $orderNumber): Response
@@ -425,19 +441,82 @@ class CartCheckoutController extends Controller
         ]);
     }
 
-    private function applyPaymentOutcome(string $orderNumber, string $status, ?string $transactionId, array $raw): void
-    {
-        DB::transaction(function () use ($orderNumber, $status, $transactionId, $raw) {
+    private function applyPaymentOutcome(
+        string $orderNumber,
+        string $status,
+        ?string $transactionId,
+        ?string $paidAmount,
+        ?string $paidCurrency,
+        array $raw
+    ): string {
+        return DB::transaction(function () use ($orderNumber, $status, $transactionId, $paidAmount, $paidCurrency, $raw): string {
             $order = Order::query()->where('order_number', $orderNumber)->lockForUpdate()->first();
             if (! $order) {
-                return;
+                return 'ignored';
             }
 
             /** @var Payment|null $payment */
             $payment = $order->payments()->latest()->lockForUpdate()->first();
-            if ($payment && $payment->status === 'completed') {
-                // Idempotency: already completed, ignore duplicate callback
-                return;
+            if (($payment && $payment->status === 'completed') || $order->payment_status === 'paid') {
+                // Out-of-order failed callback after payment already completed must NEVER cancel or unpay.
+                if ($status === 'failed') {
+                    $this->audit->log('payment.out_of_order_ignored', 'Order', $order->id, null, [
+                        'incoming_status' => $status,
+                        'transaction_reference' => $transactionId,
+                    ]);
+                }
+
+                return 'paid';
+            }
+
+            if ($status === 'completed') {
+                $expectedAmount = Money::toGateway((string) $order->grand_total);
+                $receivedAmount = $paidAmount !== null ? Money::toGateway($paidAmount) : null;
+                $expectedCurrency = strtoupper((string) $order->currency);
+                $receivedCurrency = $paidCurrency !== null ? strtoupper(trim($paidCurrency)) : null;
+
+                $amountMatches = $receivedAmount !== null && bccomp($receivedAmount, $expectedAmount, Money::GATEWAY_SCALE) === 0;
+                $currencyMatches = $receivedCurrency !== null && $receivedCurrency === $expectedCurrency;
+
+                if (! $amountMatches || ! $currencyMatches) {
+                    if ($payment) {
+                        $payment->update([
+                            'status' => 'amount_mismatch',
+                            'transaction_reference' => $transactionId ?: $payment->transaction_reference,
+                            'payload' => $raw,
+                        ]);
+                    }
+                    $order->update(['payment_status' => 'amount_mismatch']);
+
+                    $this->audit->log('payment.amount_mismatch', 'Order', $order->id, null, [
+                        'expected_amount' => $expectedAmount,
+                        'received_amount' => $receivedAmount,
+                        'expected_currency' => $expectedCurrency,
+                        'received_currency' => $receivedCurrency,
+                        'transaction_reference' => $transactionId,
+                    ]);
+
+                    return 'amount_mismatch';
+                }
+
+                if ($order->status === 'cancelled') {
+                    if ($payment) {
+                        $payment->update([
+                            'status' => 'needs_review',
+                            'transaction_reference' => $transactionId ?: $payment->transaction_reference,
+                            'payload' => $raw,
+                        ]);
+                    }
+                    $order->update(['payment_status' => 'needs_review']);
+
+                    $this->audit->log('payment.completed_after_cancel', 'Order', $order->id, null, [
+                        'transaction_reference' => $transactionId,
+                        'amount' => $receivedAmount,
+                        'currency' => $receivedCurrency,
+                    ]);
+
+                    return 'needs_review';
+                }
             }
 
             if ($payment) {
@@ -464,6 +543,8 @@ class CartCheckoutController extends Controller
             $this->audit->log('payment.callback_'.$status, 'Order', $order->id, null, [
                 'transaction_reference' => $transactionId,
             ]);
+
+            return $status === 'completed' ? 'paid' : $status;
         });
     }
 }
