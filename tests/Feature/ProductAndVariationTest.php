@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Services\ProductService;
 use Database\Seeders\RbacSeeder;
 use Database\Seeders\SettingsSeeder;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     $this->seed([RbacSeeder::class, SettingsSeeder::class]);
@@ -66,7 +68,7 @@ it('generates variation combinations without duplicates', function () {
 });
 
 it('creates a product with inline variations and uploaded images in one wizard submission', function () {
-    \Illuminate\Support\Facades\Storage::fake('public');
+    Storage::fake('public');
 
     $response = $this->actingAs($this->admin)->post('/admin/products', [
         'name' => 'Wizard Hoodie',
@@ -79,7 +81,7 @@ it('creates a product with inline variations and uploaded images in one wizard s
             ['name' => 'White / L', 'sku' => 'WIZ-HOOD-1-WHT-L', 'price' => '62.00', 'stock_quantity' => 8, 'is_default' => false],
         ],
         'images' => [
-            \Illuminate\Http\UploadedFile::fake()->image('hoodie.jpg', 800, 800),
+            UploadedFile::fake()->image('hoodie.jpg', 800, 800),
         ],
     ]);
 
@@ -91,7 +93,7 @@ it('creates a product with inline variations and uploaded images in one wizard s
 });
 
 it('stores per-variation images and falls back to base images when a variant has none', function () {
-    \Illuminate\Support\Facades\Storage::fake('public');
+    Storage::fake('public');
 
     $response = $this->actingAs($this->admin)->post('/admin/products', [
         'name' => 'Studio Lamp',
@@ -104,10 +106,10 @@ it('stores per-variation images and falls back to base images when a variant has
             ['name' => 'Silver', 'sku' => 'LAMP-VAR-1-SLV', 'price' => '85.00', 'stock_quantity' => 7, 'is_default' => false],
         ],
         'images' => [
-            \Illuminate\Http\UploadedFile::fake()->image('base-lamp.jpg', 800, 800),
+            UploadedFile::fake()->image('base-lamp.jpg', 800, 800),
         ],
         'variation_images' => [
-            0 => \Illuminate\Http\UploadedFile::fake()->image('black-lamp.jpg', 800, 800),
+            0 => UploadedFile::fake()->image('black-lamp.jpg', 800, 800),
         ],
     ]);
 

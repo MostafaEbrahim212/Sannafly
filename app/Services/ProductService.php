@@ -3,10 +3,12 @@
 namespace App\Services;
 
 use App\Models\AttributeOption;
+use App\Models\PriceType;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductPrice;
 use App\Models\ProductVariation;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -224,7 +226,7 @@ class ProductService
             return;
         }
 
-        $regularPriceTypeId = \App\Models\PriceType::query()->where('slug', 'regular')->value('id') ?? 1;
+        $regularPriceTypeId = PriceType::query()->where('slug', 'regular')->value('id') ?? 1;
         $keptIds = [];
         $totalStock = 0;
 
@@ -278,7 +280,7 @@ class ProductService
                 );
             }
 
-            if (isset($variationImages[$idx]) && $variationImages[$idx] instanceof \Illuminate\Http\UploadedFile) {
+            if (isset($variationImages[$idx]) && $variationImages[$idx] instanceof UploadedFile) {
                 $processed = $this->imageService->processAndStore($variationImages[$idx], "products/{$product->id}/variations");
                 $storedPaths[] = $processed['path'];
                 $storedPaths[] = $processed['thumbnail_path'];

@@ -304,6 +304,7 @@ class ImportExportController extends Controller
                             'row_data' => $assoc,
                             'created_at' => now(),
                         ]);
+
                         continue;
                     }
 
@@ -311,6 +312,7 @@ class ImportExportController extends Controller
                     if ($existing) {
                         if ($data['duplicate_strategy'] === 'skip') {
                             $job->increment('processed_rows');
+
                             continue;
                         }
                         if ($data['duplicate_strategy'] === 'fail') {
@@ -323,6 +325,7 @@ class ImportExportController extends Controller
                                 'row_data' => $assoc,
                                 'created_at' => now(),
                             ]);
+
                             continue;
                         }
                     }

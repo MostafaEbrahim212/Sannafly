@@ -23,6 +23,7 @@ class ProductionPreflight extends Command
         // 1. APP_KEY & APP_DEBUG
         if (empty(config('app.key'))) {
             $this->error('[FAIL] APP_KEY is missing. Run: php artisan key:generate');
+
             return self::FAILURE;
         }
         $this->info('[OK] APP_KEY is set.');
@@ -40,6 +41,7 @@ class ProductionPreflight extends Command
             $this->info('[OK] Database connection successful ('.config('database.default').').');
         } catch (\Throwable $e) {
             $this->error('[FAIL] Database connection failed: '.$e->getMessage());
+
             return self::FAILURE;
         }
 

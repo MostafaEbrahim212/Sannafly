@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\PaymentMethod;
 use App\Models\PriceType;
@@ -10,6 +11,7 @@ use App\Services\InventoryService;
 use App\Services\OrderService;
 use Database\Seeders\RbacSeeder;
 use Database\Seeders\SettingsSeeder;
+use Illuminate\Support\Facades\Hash;
 
 beforeEach(function () {
     $this->seed([RbacSeeder::class, SettingsSeeder::class]);
@@ -161,12 +163,12 @@ it('requires shipping address on checkout and saves address for logged-in custom
         'min_quantity' => 1,
     ]);
 
-    $customer = \App\Models\Customer::query()->create([
+    $customer = Customer::query()->create([
         'name' => 'Tarek',
         'email' => 'tarek@Sannafly.test',
         'phone' => '01033334444',
         'status' => 'active',
-        'password' => \Illuminate\Support\Facades\Hash::make('Password123!'),
+        'password' => Hash::make('Password123!'),
     ]);
 
     $this->actingAs($customer, 'customer')->post('/cart/add', [

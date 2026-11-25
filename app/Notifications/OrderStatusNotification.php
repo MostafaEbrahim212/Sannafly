@@ -34,7 +34,7 @@ class OrderStatusNotification extends Notification
         if ($this->isNewOrder) {
             $mail->line("Thank you for your order! Your order **{$this->order->order_number}** has been received.");
         } else {
-            $mail->line("Your order **{$this->order->order_number}** status is now **".strtoupper($this->order->status)."**.");
+            $mail->line("Your order **{$this->order->order_number}** status is now **".strtoupper($this->order->status).'**.');
         }
 
         $mail->line('Total: '.number_format((float) $this->order->grand_total, 2)." {$this->order->currency}")

@@ -14,7 +14,7 @@ class ImageService
 
     public function __construct(private readonly SettingsService $settings)
     {
-        $this->manager = new ImageManager(new Driver());
+        $this->manager = new ImageManager(new Driver);
     }
 
     /**

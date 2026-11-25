@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductInquiry;
 use App\Services\SettingsService;
@@ -48,7 +49,7 @@ it('disables cart route cleanly when e-commerce module is turned off', function 
 });
 
 it('tracks order only when both order number and matching phone are provided', function () {
-    $order = \App\Models\Order::query()->create([
+    $order = Order::query()->create([
         'order_number' => 'ORD-TRACK-99',
         'customer_name' => 'Khaled',
         'customer_phone' => '01022223333',

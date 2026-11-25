@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -36,7 +37,8 @@ class PasswordResetController extends Controller
                 $request->only('email'),
                 function ($user, string $token) use ($isAdmin) {
                     $url = url($isAdmin ? "/admin/reset-password/{$token}?email=".urlencode($user->email) : "/reset-password/{$token}?email=".urlencode($user->email));
-                    $user->notify(new class($url) extends \Illuminate\Auth\Notifications\ResetPassword {
+                    $user->notify(new class($url) extends ResetPassword
+                    {
                         public function __construct(private readonly string $customUrl)
                         {
                             parent::__construct('');

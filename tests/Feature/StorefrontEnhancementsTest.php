@@ -4,9 +4,11 @@ use App\Models\Coupon;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\PaymentMethod;
+use App\Models\PriceType;
 use App\Models\Product;
 use App\Models\ShippingZone;
 use App\Models\User;
+use App\Notifications\OrderStatusNotification;
 use Database\Seeders\RbacSeeder;
 use Database\Seeders\SettingsSeeder;
 use Illuminate\Support\Facades\Notification;
@@ -29,7 +31,7 @@ beforeEach(function () {
         'visibility' => 'public',
         'stock_quantity' => 25,
     ]);
-    $regularPriceType = \App\Models\PriceType::query()->where('slug', 'regular')->firstOrFail();
+    $regularPriceType = PriceType::query()->where('slug', 'regular')->firstOrFail();
     $this->product->prices()->create([
         'price_type_id' => $regularPriceType->id,
         'amount' => '100.0000',
@@ -85,7 +87,7 @@ it('applies valid coupons and calculates shipping zone rates on checkout', funct
     expect($order->coupon_code)->toBe('SAVE20');
     expect($order->shipping_zone_name)->toBe('Cairo & Giza');
 
-    Notification::assertSentOnDemand(\App\Notifications\OrderStatusNotification::class);
+    Notification::assertSentOnDemand(OrderStatusNotification::class);
 });
 
 it('renders admin order detail and printable invoice', function () {

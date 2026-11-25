@@ -46,6 +46,7 @@ class WishlistController extends Controller
 
         if ($existing) {
             $existing->delete();
+
             return back()->with('success', __('Removed from wishlist.'));
         }
 
