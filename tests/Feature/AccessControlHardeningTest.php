@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\Customer;
+use App\Models\Order;
+use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Models\PriceType;
 use App\Models\Product;
@@ -9,6 +12,8 @@ use App\Services\OrderService;
 use Database\Seeders\RbacSeeder;
 use Database\Seeders\SettingsSeeder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\URL;
 
 beforeEach(function () {
     $this->seed([RbacSeeder::class, SettingsSeeder::class]);
@@ -112,4 +117,95 @@ it('blocks placing an order if a product was unpublished or deleted after being 
         [['product_id' => $p2->id, 'quantity' => 1]],
         $cod->id
     ))->toThrow(ModelNotFoundException::class);
+});
+
+it('denies unauthorized access to order confirmation and strips sensitive fields from response', function () {
+    $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
+    $customerA = Customer::query()->create([
+        'name' => 'Customer A',
+        'email' => 'a@example.com',
+        'phone' => '01011111111',
+        'password' => 'secret123',
+        'status' => 'active',
+    ]);
+    $customerB = Customer::query()->create([
+        'name' => 'Customer B',
+        'email' => 'b@example.com',
+        'phone' => '01022222222',
+        'password' => 'secret123',
+        'status' => 'active',
+    ]);
+
+    $order = Order::query()->create([
+        'order_number' => 'ORD-20261125-XYZ1234567',
+        'customer_id' => $customerA->id,
+        'customer_name' => 'Customer A',
+        'customer_phone' => '01011111111',
+        'payment_method_id' => $cod->id,
+        'subtotal' => '100.0000',
+        'grand_total' => '100.0000',
+        'currency' => 'EGP',
+        'idempotency_key' => 'secret-idem-hash',
+    ]);
+    Payment::query()->create([
+        'order_id' => $order->id,
+        'payment_method_id' => $cod->id,
+        'amount' => '100.0000',
+        'currency' => 'EGP',
+        'status' => 'pending',
+        'payload' => ['gateway_secret_token' => 'LEAKED_PAYLOAD_SECRET'],
+    ]);
+
+    // Unrelated guest gets 404
+    $this->get("/orders/confirmation/{$order->order_number}")->assertNotFound();
+
+    // Another customer gets 404
+    $this->actingAs($customerB, 'customer')
+        ->get("/orders/confirmation/{$order->order_number}")
+        ->assertNotFound();
+
+    // Owner customer succeeds and response leaks no payload, config, or idempotency_key
+    $res = $this->actingAs($customerA, 'customer')
+        ->get("/orders/confirmation/{$order->order_number}")
+        ->assertOk();
+
+    expect($res->getContent())->not->toContain('LEAKED_PAYLOAD_SECRET');
+    expect($res->getContent())->not->toContain('secret-idem-hash');
+
+    // Signed URL works for guest and expires
+    Auth::guard('customer')->logout();
+    $signedUrl = URL::temporarySignedRoute('orders.confirmation', now()->addMinutes(10), ['orderNumber' => $order->order_number]);
+    $this->get($signedUrl)->assertOk();
+
+    $expiredUrl = URL::temporarySignedRoute('orders.confirmation', now()->subMinute(), ['orderNumber' => $order->order_number]);
+    $this->get($expiredUrl)->assertNotFound();
+});
+
+it('normalizes Egyptian phone numbers on track-order and throttles abuse', function () {
+    $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
+    $order = Order::query()->create([
+        'order_number' => 'ORD-20261125-TRACK12345',
+        'customer_name' => 'Ali',
+        'customer_phone' => '01012345678',
+        'payment_method_id' => $cod->id,
+        'subtotal' => '100.0000',
+        'grand_total' => '100.0000',
+        'currency' => 'EGP',
+    ]);
+
+    $res = $this->get('/track-order?order_number=ORD-20261125-TRACK12345&phone='.urlencode('+20 101 234 5678'));
+    $res->assertOk();
+    expect($res->getContent())->toContain('ORD-20261125-TRACK12345');
+    expect($res->getContent())->not->toContain('"notFound":true');
+
+    // Throttle triggers after repeated requests
+    $hit429 = false;
+    for ($i = 0; $i < 25; $i++) {
+        $r = $this->get('/track-order?order_number=ORD-20261125-TRACK12345&phone=01000000000');
+        if ($r->getStatusCode() === 429) {
+            $hit429 = true;
+            break;
+        }
+    }
+    expect($hit429)->toBeTrue();
 });

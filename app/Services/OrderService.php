@@ -146,7 +146,7 @@ class OrderService
                 $currency = strtoupper(trim((string) $this->settings->get('currency', 'EGP'))) ?: 'EGP';
 
                 $order = Order::query()->create([
-                    'order_number' => 'ORD-'.now()->format('Ymd').'-'.strtoupper(Str::random(6)),
+                    'order_number' => $this->generateUniqueOrderNumber(),
                     'user_id' => null,
                     'customer_id' => Auth::guard('customer')->id(),
                     'customer_name' => $customerData['customer_name'],
@@ -232,6 +232,15 @@ class OrderService
     protected function findExistingByScopedKey(string $scopedKey): ?Order
     {
         return Order::query()->where('idempotency_key', $scopedKey)->first();
+    }
+
+    private function generateUniqueOrderNumber(): string
+    {
+        do {
+            $candidate = 'ORD-'.now()->format('Ymd').'-'.strtoupper(Str::random(10));
+        } while (Order::withTrashed()->where('order_number', $candidate)->exists());
+
+        return $candidate;
     }
 
     private function resolveActorScope(): string

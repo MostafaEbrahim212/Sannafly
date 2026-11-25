@@ -47,6 +47,10 @@ class Order extends Model
         'idempotency_key',
     ];
 
+    protected $hidden = [
+        'idempotency_key',
+    ];
+
     protected function casts(): array
     {
         return [

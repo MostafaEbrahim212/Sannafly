@@ -24,3 +24,8 @@ Sannafly is a modular, monolith-first Laravel + React + TypeScript + Inertia.js 
 - **Context:** Raw client-supplied `idempotency_key` values were previously stored globally, allowing another client who guessed or replayed a key to fetch someone else's order.
 - **Decision:** Hash `"{actor_scope}|{idempotency_key}"` with SHA-256, where `actor_scope` is `customer:{id}` (authenticated) or `session:{id}` (guest). Server-generated session keys are used when the client omits one.
 - **Consequences:** Cross-actor key collisions are impossible, and concurrent duplicate submits catch `UniqueConstraintViolationException` and return the existing order safely.
+
+### ADR-003: Non-Sequential, High-Entropy Order Numbers
+- **Context:** Short 6-character suffixes on `ORD-YYYYMMDD-XXXXXX` are easier to enumerate.
+- **Decision:** Use `ORD-YYYYMMDD-{10-char CSPRNG}` (`Str::random(10)` uppercase) with uniqueness collision retry, paired with ownership/session/signed-URL authorization on `/orders/confirmation/{orderNumber}`.
+- **Consequences:** Order numbers remain human-readable for support and Fawry/MyFatoorah references while resisting enumeration.

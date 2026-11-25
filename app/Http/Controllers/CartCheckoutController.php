@@ -20,6 +20,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -324,6 +326,11 @@ class CartCheckoutController extends Controller
         }
 
         $request->session()->forget(['cart', 'cart_coupon_code', 'checkout_idempotency_key']);
+        $placed = $request->session()->get('placed_order_numbers', []);
+        $placed[] = $order->order_number;
+        $request->session()->put('placed_order_numbers', array_values(array_unique(array_slice($placed, -20))));
+
+        $confirmationUrl = URL::temporarySignedRoute('orders.confirmation', now()->addHours(24), ['orderNumber' => $order->order_number]);
 
         $method = $order->paymentMethod;
         $gateway = $method ? $this->gatewayManager->resolve($method) : null;
@@ -349,17 +356,17 @@ class CartCheckoutController extends Controller
                     return Inertia::location($result['redirect_url']);
                 }
 
-                return redirect()->route('orders.confirmation', $order->order_number)
+                return redirect($confirmationUrl)
                     ->with('success', $result['reference_number']
                         ? __('Order placed! Fawry Reference: :ref', ['ref' => $result['reference_number']])
                         : __('Order placed!'));
             }
 
-            return redirect()->route('orders.confirmation', $order->order_number)
+            return redirect($confirmationUrl)
                 ->with('error', $result['error'] ?? __('Online payment could not be initiated.'));
         }
 
-        return redirect()->route('orders.confirmation', $order->order_number)->with('success', __('Order placed successfully!'));
+        return redirect($confirmationUrl)->with('success', __('Order placed successfully!'));
     }
 
     public function paymentReturn(Request $request, string $driver): RedirectResponse
@@ -380,8 +387,9 @@ class CartCheckoutController extends Controller
                 );
 
                 $isConfirmed = $outcome === 'paid';
+                $signedUrl = URL::temporarySignedRoute('orders.confirmation', now()->addHours(24), ['orderNumber' => $verified['order_number']]);
 
-                return redirect()->route('orders.confirmation', $verified['order_number'])
+                return redirect($signedUrl)
                     ->with($isConfirmed ? 'success' : 'error',
                         $isConfirmed ? __('Payment confirmed!') : __('Payment was not completed.'));
             }
@@ -432,12 +440,22 @@ class CartCheckoutController extends Controller
         return $subtotal;
     }
 
-    public function confirmation(string $orderNumber): Response
+    public function confirmation(Request $request, string $orderNumber): Response
     {
         $order = Order::query()
             ->where('order_number', $orderNumber)
             ->with(['items', 'paymentMethod:id,name,name_ar,driver,config', 'payments'])
             ->firstOrFail();
+
+        /** @var Customer|null $customer */
+        $customer = Auth::guard('customer')->user();
+        $isOwner = $customer !== null && $order->customer_id !== null && (int) $order->customer_id === (int) $customer->id;
+        $placedInSession = in_array($order->order_number, $request->session()->get('placed_order_numbers', []), true);
+        $hasValidSignature = $request->hasValidSignature();
+
+        if (! ($isOwner || $placedInSession || $hasValidSignature)) {
+            abort(404);
+        }
 
         $cfg = $order->paymentMethod?->config ?? [];
         $paymentMeta = match ($order->paymentMethod?->driver) {
@@ -454,12 +472,8 @@ class CartCheckoutController extends Controller
             default => null,
         };
 
-        if ($order->paymentMethod) {
-            $order->paymentMethod->makeHidden('config');
-        }
-
         return Inertia::render('Storefront/OrderConfirmation', [
-            'order' => $order,
+            'order' => $this->formatPublicOrderDto($order),
             'paymentMeta' => $paymentMeta,
         ]);
     }
@@ -471,17 +485,27 @@ class CartCheckoutController extends Controller
 
         if ($request->filled('order_number') && $request->filled('phone')) {
             $orderNumber = trim($request->string('order_number')->toString());
-            $phone = preg_replace('/\s+/', '', $request->string('phone')->toString());
+            $ipKey = 'track-order:ip:'.$request->ip();
+            $orderKey = 'track-order:order:'.$request->ip().':'.strtolower($orderNumber);
 
-            $order = Order::query()
+            if (RateLimiter::tooManyAttempts($ipKey, 20) || RateLimiter::tooManyAttempts($orderKey, 10)) {
+                abort(429, __('Too many tracking attempts. Please try again later.'));
+            }
+
+            RateLimiter::hit($ipKey, 60);
+            RateLimiter::hit($orderKey, 60);
+
+            $normalizedInput = $this->normalizeEgyptianPhone($request->string('phone')->toString());
+
+            $found = Order::query()
                 ->where('order_number', $orderNumber)
-                ->with(['items', 'paymentMethod:id,name,name_ar'])
+                ->with(['items', 'paymentMethod:id,name,name_ar,driver', 'payments'])
                 ->first();
 
-            if ($order) {
-                $storedPhone = preg_replace('/\s+/', '', (string) $order->customer_phone);
-                if ($storedPhone !== $phone) {
-                    $order = null;
+            if ($found) {
+                $normalizedStored = $this->normalizeEgyptianPhone((string) $found->customer_phone);
+                if ($normalizedInput !== '' && $normalizedStored !== '' && hash_equals($normalizedStored, $normalizedInput)) {
+                    $order = $this->formatPublicOrderDto($found);
                 }
             }
 
@@ -495,6 +519,60 @@ class CartCheckoutController extends Controller
             'notFound' => $notFound,
             'filters' => (object) $request->only(['order_number', 'phone']),
         ]);
+    }
+
+    private function normalizeEgyptianPhone(string $phone): string
+    {
+        $digits = preg_replace('/\D+/', '', $phone) ?? '';
+        if (str_starts_with($digits, '0020')) {
+            $digits = substr($digits, 4);
+        } elseif (str_starts_with($digits, '20') && strlen($digits) > 10) {
+            $digits = substr($digits, 2);
+        }
+
+        return ltrim($digits, '0');
+    }
+
+    /**
+     * Strict allow-listed DTO for public order confirmation and tracking pages.
+     */
+    private function formatPublicOrderDto(Order $order): array
+    {
+        return [
+            'order_number' => $order->order_number,
+            'status' => $order->status,
+            'payment_status' => $order->payment_status,
+            'customer_name' => $order->customer_name,
+            'shipping_address' => $order->shipping_address,
+            'shipping_zone_name' => $order->shipping_zone_name,
+            'subtotal' => (string) $order->subtotal,
+            'discount_total' => (string) $order->discount_total,
+            'shipping_total' => (string) $order->shipping_total,
+            'tax_total' => (string) $order->tax_total,
+            'grand_total' => (string) $order->grand_total,
+            'currency' => $order->currency,
+            'coupon_code' => $order->coupon_code,
+            'created_at' => $order->created_at?->toIso8601String(),
+            'payment_method' => $order->paymentMethod ? [
+                'name' => $order->paymentMethod->name,
+                'name_ar' => $order->paymentMethod->name_ar,
+                'driver' => $order->paymentMethod->driver,
+            ] : null,
+            'items' => $order->items->map(fn ($item) => [
+                'product_name' => $item->product_name,
+                'sku' => $item->sku,
+                'quantity' => (int) $item->quantity,
+                'unit_price' => (string) $item->unit_price,
+                'total_price' => (string) $item->total_price,
+            ])->values()->all(),
+            'payments' => $order->payments->map(fn ($payment) => [
+                'status' => $payment->status,
+                'amount' => (string) $payment->amount,
+                'currency' => $payment->currency,
+                'transaction_reference' => $payment->transaction_reference,
+                'paid_at' => $payment->paid_at?->toIso8601String(),
+            ])->values()->all(),
+        ];
     }
 
     private function applyPaymentOutcome(
