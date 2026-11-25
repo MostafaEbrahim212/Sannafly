@@ -10,6 +10,7 @@ use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\ProductVariation;
 use App\Notifications\OrderStatusNotification;
+use App\Services\Payments\PaymentGatewayManager;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -27,7 +28,7 @@ class OrderService
         'pending' => ['confirmed', 'processing', 'cancelled'],
         'confirmed' => ['processing', 'shipped', 'cancelled'],
         'processing' => ['shipped', 'cancelled'],
-        'shipped' => ['delivered', 'returned', 'cancelled'],
+        'shipped' => ['delivered', 'returned'],
         'delivered' => ['returned', 'refunded'],
         'returned' => ['refunded'],
         'cancelled' => [],
@@ -39,6 +40,7 @@ class OrderService
         private readonly AuditLogger $audit,
         private readonly ShippingService $shipping,
         private readonly SettingsService $settings,
+        private readonly PaymentGatewayManager $gatewayManager,
     ) {}
 
     public static function allowedNextStatuses(string $currentStatus): array
@@ -209,7 +211,7 @@ class OrderService
                 }
 
                 match ($newStatus) {
-                    'cancelled' => $this->restoreOrderStock($locked, 'release', "Released from cancelled order {$locked->order_number}"),
+                    'cancelled' => $this->handleCancellation($locked),
                     'returned' => $this->restoreOrderStock($locked, 'return', "Returned from order {$locked->order_number}"),
                     'refunded' => $this->handleRefund($locked, $restockOnRefund),
                     default => null,
@@ -272,11 +274,95 @@ class OrderService
         return $this->transitionStatus($order, 'returned');
     }
 
+    private function handleCancellation(Order $locked): void
+    {
+        $this->restoreOrderStock($locked, 'release', "Released from cancelled order {$locked->order_number}");
+        $this->releaseCoupon($locked);
+
+        if ($locked->payment_status === 'paid' && $this->isOnlineGateway($locked)) {
+            $locked->payment_status = 'refund_pending';
+            $this->audit->log('order.refund_pending', 'Order', $locked->id, null, [
+                'reason' => 'Paid online order cancelled',
+                'grand_total' => $locked->grand_total,
+                'currency' => $locked->currency,
+            ]);
+            $this->scheduleAutoRefundAfterCommit($locked);
+        }
+    }
+
+    private function releaseCoupon(Order $locked): void
+    {
+        if (! $locked->coupon_id) {
+            return;
+        }
+
+        $coupon = Coupon::query()->whereKey($locked->coupon_id)->lockForUpdate()->first();
+        if ($coupon && $coupon->used_count > 0) {
+            $coupon->decrement('used_count');
+        }
+    }
+
+    private function isOnlineGateway(Order $order): bool
+    {
+        return in_array($order->paymentMethod?->driver, ['fawry', 'myfatoorah'], true);
+    }
+
+    private function scheduleAutoRefundAfterCommit(Order $order): void
+    {
+        $method = $order->paymentMethod;
+        if (! $method || empty($method->config['auto_refund'])) {
+            return;
+        }
+
+        $orderId = $order->id;
+        DB::afterCommit(function () use ($orderId): void {
+            $fresh = Order::query()->with(['paymentMethod', 'payments'])->find($orderId);
+            if (! $fresh || ! $fresh->paymentMethod || $fresh->payment_status !== 'refund_pending') {
+                return;
+            }
+
+            $gateway = $this->gatewayManager->resolve($fresh->paymentMethod);
+            if (! $gateway) {
+                return;
+            }
+
+            $result = $gateway->refund($fresh, $fresh->paymentMethod, (string) $fresh->grand_total, "Cancelled order {$fresh->order_number}");
+            if ($result['success']) {
+                DB::transaction(function () use ($fresh, $result): void {
+                    $locked = Order::query()->with('payments')->lockForUpdate()->find($fresh->id);
+                    if (! $locked || $locked->payment_status !== 'refund_pending') {
+                        return;
+                    }
+                    $locked->update(['payment_status' => 'refunded']);
+                    foreach ($locked->payments as $payment) {
+                        if ($payment->status === 'completed') {
+                            $payment->update(['status' => 'refunded']);
+                        }
+                    }
+                    $this->audit->log('order.refunded', 'Order', $locked->id, null, [
+                        'refund_id' => $result['refund_id'] ?? null,
+                    ]);
+                });
+            }
+        });
+    }
+
     private function handleRefund(Order $locked, bool $restockOnRefund): void
     {
         // Only restock if it wasn't already returned or cancelled
         if ($restockOnRefund && ! in_array($locked->status, ['returned', 'cancelled'], true)) {
             $this->restoreOrderStock($locked, 'return', "Restocked on refund of order {$locked->order_number}");
+        }
+
+        if ($locked->payment_status === 'paid' && $this->isOnlineGateway($locked) && ! empty($locked->paymentMethod?->config['auto_refund'])) {
+            $locked->payment_status = 'refund_pending';
+            $this->audit->log('order.refund_pending', 'Order', $locked->id, null, [
+                'reason' => 'Online refund initiated',
+                'grand_total' => $locked->grand_total,
+            ]);
+            $this->scheduleAutoRefundAfterCommit($locked);
+
+            return;
         }
 
         $locked->payment_status = 'refunded';

@@ -20,4 +20,11 @@ interface PaymentGatewayInterface
      * @return array{verified: bool, order_number?: string|null, transaction_id?: string|null, status: string, amount?: string|null, currency?: string|null, raw?: array}
      */
     public function verifyCallback(array $payload, PaymentMethod $method): array;
+
+    /**
+     * Issue a refund for a paid order (behind per-gateway feature flag).
+     *
+     * @return array{success: bool, refund_id?: string|null, error?: string|null, raw?: array}
+     */
+    public function refund(Order $order, PaymentMethod $method, string $amount, ?string $reason = null): array;
 }

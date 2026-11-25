@@ -117,4 +117,51 @@ class FawryGateway implements PaymentGatewayInterface
             'raw' => $payload,
         ];
     }
+
+    public function refund(Order $order, PaymentMethod $method, string $amount, ?string $reason = null): array
+    {
+        $config = $method->config ?? [];
+        if (empty($config['auto_refund'])) {
+            return ['success' => false, 'error' => __('Auto-refund is disabled for Fawry.')];
+        }
+
+        $merchantCode = trim((string) ($config['merchant_code'] ?? ''));
+        $securityKey = trim((string) ($config['security_key'] ?? ''));
+        $referenceNumber = $order->payments()->where('status', 'completed')->latest()->value('transaction_reference');
+
+        if ($merchantCode === '' || $securityKey === '' || ! $referenceNumber) {
+            return ['success' => false, 'error' => __('Missing Fawry credentials or transaction reference.')];
+        }
+
+        $sandbox = (bool) ($config['sandbox'] ?? true);
+        $baseUrl = $sandbox ? 'https://atfawry.fawrystaging.com' : 'https://www.atfawry.com';
+        $refundAmount = Money::toGateway($amount);
+        $reasonText = $reason ?: "Refund for order {$order->order_number}";
+        $signature = hash('sha256', $merchantCode.$referenceNumber.$refundAmount.$reasonText.$securityKey);
+
+        $response = Http::acceptJson()
+            ->timeout(15)
+            ->post("{$baseUrl}/ECommerceWeb/Fawry/payments/refund", [
+                'merchantCode' => $merchantCode,
+                'referenceNumber' => $referenceNumber,
+                'refundAmount' => $refundAmount,
+                'reason' => $reasonText,
+                'signature' => $signature,
+            ]);
+
+        $json = $response->json();
+        if (! $response->successful() || (isset($json['statusCode']) && (int) $json['statusCode'] !== 200)) {
+            return [
+                'success' => false,
+                'error' => $json['statusDescription'] ?? __('Fawry refund failed.'),
+                'raw' => is_array($json) ? $json : [],
+            ];
+        }
+
+        return [
+            'success' => true,
+            'refund_id' => $json['fawryRefNumber'] ?? $referenceNumber,
+            'raw' => is_array($json) ? $json : [],
+        ];
+    }
 }

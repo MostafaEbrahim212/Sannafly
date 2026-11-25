@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AuditLog;
+use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
@@ -312,12 +313,12 @@ it('does not silently confirm a cancelled order when a late completed callback a
 });
 
 it('expires only eligible unpaid online orders and releases stock exactly once', function () {
-    $regular = \App\Models\PriceType::query()->where('slug', 'regular')->firstOrFail();
+    $regular = PriceType::query()->where('slug', 'regular')->firstOrFail();
     $fawry = PaymentMethod::query()->where('driver', 'fawry')->firstOrFail();
     $fawry->update(['is_active' => true]);
     $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
 
-    $product = \App\Models\Product::query()->create([
+    $product = Product::query()->create([
         'name' => 'Mouse',
         'slug' => 'mouse',
         'sku' => 'MOUSE-1',
@@ -326,7 +327,7 @@ it('expires only eligible unpaid online orders and releases stock exactly once',
         'stock_quantity' => 10,
         'track_inventory' => true,
     ]);
-    \App\Models\ProductPrice::query()->create([
+    ProductPrice::query()->create([
         'product_id' => $product->id,
         'price_type_id' => $regular->id,
         'amount' => '100.0000',
@@ -334,8 +335,8 @@ it('expires only eligible unpaid online orders and releases stock exactly once',
         'min_quantity' => 1,
     ]);
 
-    /** @var \App\Services\OrderService $orders */
-    $orders = app(\App\Services\OrderService::class);
+    /** @var OrderService $orders */
+    $orders = app(OrderService::class);
 
     // 1. Eligible: unpaid Fawry order created 90 minutes ago
     $expiredOrder = $orders->placeOrder(
@@ -386,4 +387,90 @@ it('expires only eligible unpaid online orders and releases stock exactly once',
     // Running twice must be a no-op
     $this->artisan('orders:expire-unpaid')->assertExitCode(0);
     expect($product->fresh()->stock_quantity)->toBe(7);
+});
+
+it('releases coupon used_count when an order is cancelled and never goes below zero', function () {
+    $regular = PriceType::query()->where('slug', 'regular')->firstOrFail();
+    $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
+
+    $product = Product::query()->create([
+        'name' => 'Keyboard',
+        'slug' => 'keyboard',
+        'sku' => 'KB-01',
+        'status' => 'published',
+        'visibility' => 'public',
+        'stock_quantity' => 10,
+        'track_inventory' => true,
+    ]);
+    ProductPrice::query()->create([
+        'product_id' => $product->id,
+        'price_type_id' => $regular->id,
+        'amount' => '200.0000',
+        'currency' => 'EGP',
+        'min_quantity' => 1,
+    ]);
+
+    $coupon = Coupon::query()->create([
+        'code' => 'SAVE20',
+        'name' => 'Save 20',
+        'type' => 'fixed',
+        'value' => '20.0000',
+        'is_active' => true,
+        'usage_limit' => 5,
+        'used_count' => 0,
+    ]);
+
+    /** @var OrderService $orders */
+    $orders = app(OrderService::class);
+    $order = $orders->placeOrder(
+        ['customer_name' => 'Ali', 'customer_phone' => '01012345678'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id,
+        null,
+        'SAVE20'
+    );
+
+    expect($coupon->fresh()->used_count)->toBe(1);
+
+    $orders->cancelOrder($order);
+    expect($coupon->fresh()->used_count)->toBe(0);
+
+    // Even if used_count was already 0, cancelling another order with same coupon_id must not go negative
+    $order2 = Order::query()->create([
+        'order_number' => 'ORD-COUP-ZERO',
+        'customer_name' => 'Ali',
+        'customer_phone' => '01012345678',
+        'payment_method_id' => $cod->id,
+        'coupon_id' => $coupon->id,
+        'coupon_code' => 'SAVE20',
+        'status' => 'pending',
+        'payment_status' => 'unpaid',
+        'subtotal' => '200.0000',
+        'grand_total' => '180.0000',
+        'currency' => 'EGP',
+    ]);
+    $orders->cancelOrder($order2);
+    expect($coupon->fresh()->used_count)->toBe(0);
+});
+
+it('marks paid online order as refund_pending and audits when cancelled without auto-refund', function () {
+    [, $order] = makeFawryOrderWithPayment('ORD-REFUND-1', '150.0000', 'confirmed', 'paid');
+
+    /** @var OrderService $orders */
+    $orders = app(OrderService::class);
+    $orders->cancelOrder($order);
+
+    expect($order->fresh()->status)->toBe('cancelled');
+    expect($order->fresh()->payment_status)->toBe('refund_pending');
+    expect(AuditLog::query()->where('action', 'order.refund_pending')->where('resource_id', (string) $order->id)->exists())->toBeTrue();
+});
+
+it('forbids cancelling an order once it has been shipped', function () {
+    [, $order] = makeFawryOrderWithPayment('ORD-SHIP-1', '150.0000', 'shipped', 'paid');
+
+    /** @var OrderService $orders */
+    $orders = app(OrderService::class);
+
+    expect(fn () => $orders->cancelOrder($order))
+        ->toThrow(RuntimeException::class);
 });

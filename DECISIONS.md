@@ -10,3 +10,12 @@ Sannafly is a modular, monolith-first Laravel + React + TypeScript + Inertia.js 
 4. **Decimal-Safe Money:** All monetary values use `DECIMAL(15,4)` in the database and string/BCMath arithmetic rather than floating-point numbers.
 5. **Bilingual & Bidirectional (EN/AR, LTR/RTL):** Localization and directionality are first-class citizens across Admin, Storefront, and Print views.
 6. **Configurable Modules:** E-commerce, stock tracking, reviews, wishlist, brands, comparisons, WhatsApp, variations, and custom pricing can be toggled without breaking unrelated features.
+
+---
+
+## Architecture Decision Records (ADRs)
+
+### ADR-001: Disallow `shipped -> cancelled` order transition
+- **Context:** Previously `OrderService::ALLOWED_TRANSITIONS['shipped']` included `'cancelled'`, which called `restoreOrderStock(..., 'release')` even though physical inventory had already left the warehouse with the courier.
+- **Decision:** Remove `'cancelled'` from `ALLOWED_TRANSITIONS['shipped']`. Shipped orders can only transition to `'delivered'` or `'returned'` (and from `'returned'` to `'refunded'`).
+- **Consequences:** Inventory is only restored for shipped orders when a physical return is recorded (`returned`), preventing phantom stock inflation.

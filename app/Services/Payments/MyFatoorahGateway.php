@@ -100,6 +100,49 @@ class MyFatoorahGateway implements PaymentGatewayInterface
         ];
     }
 
+    public function refund(Order $order, PaymentMethod $method, string $amount, ?string $reason = null): array
+    {
+        $config = $method->config ?? [];
+        if (empty($config['auto_refund'])) {
+            return ['success' => false, 'error' => __('Auto-refund is disabled for MyFatoorah.')];
+        }
+
+        $apiKey = (string) ($config['api_key'] ?? '');
+        $invoiceId = $order->payments()->where('status', 'completed')->latest()->value('transaction_reference');
+        if ($apiKey === '' || ! $invoiceId) {
+            return ['success' => false, 'error' => __('Missing MyFatoorah API key or invoice reference.')];
+        }
+
+        $baseUrl = $this->baseUrl((bool) ($config['sandbox'] ?? true), $config['country'] ?? 'EGY');
+
+        $response = Http::withToken($apiKey)
+            ->acceptJson()
+            ->timeout(15)
+            ->post("{$baseUrl}/v2/MakeRefund", [
+                'KeyType' => 'InvoiceId',
+                'Key' => (string) $invoiceId,
+                'RefundChargeOnCustomer' => false,
+                'ServiceChargeOnCustomer' => false,
+                'Amount' => Money::toGateway($amount),
+                'Comment' => $reason ?: "Refund for order {$order->order_number}",
+            ]);
+
+        $json = $response->json();
+        if (! $response->successful() || empty($json['IsSuccess'])) {
+            return [
+                'success' => false,
+                'error' => $json['Message'] ?? __('MyFatoorah refund failed.'),
+                'raw' => is_array($json) ? $json : [],
+            ];
+        }
+
+        return [
+            'success' => true,
+            'refund_id' => isset($json['Data']['RefundId']) ? (string) $json['Data']['RefundId'] : (string) $invoiceId,
+            'raw' => $json['Data'] ?? [],
+        ];
+    }
+
     private function baseUrl(bool $sandbox, string $country): string
     {
         if ($sandbox) {
