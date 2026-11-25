@@ -44,7 +44,7 @@ class CartCheckoutController extends Controller
         /** @var Customer|null $customer */
         $customer = Auth::guard('customer')->user();
 
-        $subtotal = collect($cart)->sum(fn ($item) => ((float) $item['unit_price']) * ((int) $item['quantity']));
+        $subtotal = $this->cartSubtotal($cart);
         $couponCode = $request->session()->get('cart_coupon_code');
         $appliedCoupon = null;
         if ($couponCode) {
@@ -53,8 +53,8 @@ class CartCheckoutController extends Controller
                 $appliedCoupon = [
                     'code' => $coupon->code,
                     'type' => $coupon->type,
-                    'value' => (float) $coupon->value,
-                    'discount_amount' => $coupon->calculateDiscount($subtotal),
+                    'value' => Money::toGateway((string) $coupon->value),
+                    'discount_amount' => Money::toGateway($coupon->calculateDiscount($subtotal)),
                 ];
             } else {
                 $request->session()->forget('cart_coupon_code');
@@ -156,7 +156,7 @@ class CartCheckoutController extends Controller
                 'variation_id' => $variation?->id,
                 'name' => $variation ? "{$product->name} ({$variation->name})" : $product->name,
                 'sku' => $variation ? $variation->sku : $product->sku,
-                'unit_price' => (float) $price,
+                'unit_price' => Money::normalize((string) $price),
                 'quantity' => (int) $data['quantity'],
                 'image' => $image,
             ];
@@ -205,7 +205,7 @@ class CartCheckoutController extends Controller
         }
 
         $cart = $request->session()->get('cart', []);
-        $subtotal = collect($cart)->sum(fn ($item) => ((float) $item['unit_price']) * ((int) $item['quantity']));
+        $subtotal = $this->cartSubtotal($cart);
 
         if ($error = $coupon->isValidForAmount($subtotal)) {
             return back()->with('error', __($error));
@@ -389,6 +389,17 @@ class CartCheckoutController extends Controller
 
         // Return 200 even on terminal mismatches/out-of-order callbacks to stop gateways from endlessly retrying.
         return response()->json(['status' => $outcome === 'amount_mismatch' || $outcome === 'needs_review' ? 'flagged_for_review' : 'ok']);
+    }
+
+    private function cartSubtotal(array $cart): string
+    {
+        $subtotal = '0.0000';
+        foreach ($cart as $item) {
+            $line = Money::mul((string) ($item['unit_price'] ?? '0'), (string) ((int) ($item['quantity'] ?? 0)));
+            $subtotal = Money::add($subtotal, $line);
+        }
+
+        return $subtotal;
     }
 
     public function confirmation(string $orderNumber): Response

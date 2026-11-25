@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 
 class ShippingZone extends Model
@@ -47,12 +48,16 @@ class ShippingZone extends Model
         return false;
     }
 
-    public function calculateRate(float $subtotalAfterDiscount): float
+    public function calculateRate(string|int|float $subtotalAfterDiscount): string
     {
-        if ($this->free_shipping_threshold !== null && $subtotalAfterDiscount >= (float) $this->free_shipping_threshold) {
-            return 0.0;
+        $net = Money::normalize((string) $subtotalAfterDiscount);
+        if ($this->free_shipping_threshold !== null) {
+            $threshold = Money::normalize((string) $this->free_shipping_threshold);
+            if (Money::comp($net, $threshold) >= 0) {
+                return '0.0000';
+            }
         }
 
-        return round((float) $this->rate, 2);
+        return Money::normalize((string) $this->rate);
     }
 }

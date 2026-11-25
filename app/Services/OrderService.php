@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\ProductVariation;
 use App\Notifications\OrderStatusNotification;
 use App\Services\Payments\PaymentGatewayManager;
+use App\Support\Money;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -117,22 +118,21 @@ class OrderService
                     if (! $coupon) {
                         throw new RuntimeException('Invalid coupon code.');
                     }
-                    if ($error = $coupon->isValidForAmount((float) $subtotal)) {
+                    if ($error = $coupon->isValidForAmount($subtotal)) {
                         throw new RuntimeException($error);
                     }
-                    $discountFloat = $coupon->calculateDiscount((float) $subtotal);
-                    $discountTotal = number_format($discountFloat, 4, '.', '');
+                    $discountTotal = $coupon->calculateDiscount($subtotal);
                     $coupon->increment('used_count');
                 }
 
-                $netSubtotal = max(0.0, (float) $subtotal - (float) $discountTotal);
+                $netSubtotal = Money::max('0.0000', Money::sub($subtotal, $discountTotal));
                 $city = is_array($customerData['shipping_address'] ?? null) ? ($customerData['shipping_address']['city'] ?? null) : null;
                 $isPickup = $paymentMethod->driver === 'cash';
                 $shippingCalc = $isPickup
-                    ? ['zone' => null, 'rate' => 0.0, 'free_shipping' => true]
+                    ? ['zone' => null, 'rate' => '0.0000', 'free_shipping' => true]
                     : $this->shipping->calculateForCity($city, $netSubtotal);
-                $shippingTotal = number_format($shippingCalc['rate'], 4, '.', '');
-                $grandTotal = number_format($netSubtotal + $shippingCalc['rate'], 4, '.', '');
+                $shippingTotal = Money::normalize($shippingCalc['rate']);
+                $grandTotal = Money::add($netSubtotal, $shippingTotal);
 
                 $currency = strtoupper(trim((string) $this->settings->get('currency', 'EGP'))) ?: 'EGP';
 
@@ -436,7 +436,7 @@ class OrderService
             $sale = $variation->prices->firstWhere('priceType.slug', 'sale');
             $reg = $variation->prices->firstWhere('priceType.slug', 'regular') ?? $variation->prices->first();
 
-            return number_format((float) ($sale?->amount ?? $reg->amount), 4, '.', '');
+            return Money::normalize((string) ($sale?->amount ?? $reg->amount));
         }
 
         $tier = $product->prices
@@ -445,11 +445,11 @@ class OrderService
             ->first();
 
         if ($tier) {
-            return number_format((float) $tier->amount, 4, '.', '');
+            return Money::normalize((string) $tier->amount);
         }
 
         $first = $product->prices->first();
 
-        return $first ? number_format((float) $first->amount, 4, '.', '') : '0.0000';
+        return $first ? Money::normalize((string) $first->amount) : '0.0000';
     }
 }

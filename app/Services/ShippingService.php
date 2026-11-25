@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ShippingZone;
+use App\Support\Money;
 
 class ShippingService
 {
@@ -29,13 +30,13 @@ class ShippingService
     }
 
     /**
-     * @return array{zone: ?ShippingZone, rate: float, free_shipping: bool}
+     * @return array{zone: ?ShippingZone, rate: string, free_shipping: bool}
      */
-    public function calculateForCity(?string $city, float $subtotalAfterDiscount): array
+    public function calculateForCity(?string $city, string|int|float $subtotalAfterDiscount): array
     {
         $zone = $this->resolveZone($city);
         if (! $zone) {
-            return ['zone' => null, 'rate' => 0.0, 'free_shipping' => false];
+            return ['zone' => null, 'rate' => '0.0000', 'free_shipping' => false];
         }
 
         $rate = $zone->calculateRate($subtotalAfterDiscount);
@@ -43,7 +44,7 @@ class ShippingService
         return [
             'zone' => $zone,
             'rate' => $rate,
-            'free_shipping' => $rate === 0.0 && (float) $zone->rate > 0,
+            'free_shipping' => Money::comp($rate, '0.0000') === 0 && Money::comp((string) $zone->rate, '0.0000') > 0,
         ];
     }
 }

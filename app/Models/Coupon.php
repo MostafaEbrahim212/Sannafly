@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 
 class Coupon extends Model
@@ -34,7 +35,7 @@ class Coupon extends Model
         ];
     }
 
-    public function isValidForAmount(float $subtotal): ?string
+    public function isValidForAmount(string|int|float $subtotal): ?string
     {
         if (! $this->is_active) {
             return 'This coupon is currently inactive.';
@@ -50,27 +51,34 @@ class Coupon extends Model
         if ($this->usage_limit !== null && $this->used_count >= $this->usage_limit) {
             return 'This coupon has reached its usage limit.';
         }
-        if ($subtotal < (float) $this->min_order_amount) {
-            return 'Minimum order amount for this coupon is '.number_format((float) $this->min_order_amount, 2).'.';
+
+        $sub = Money::normalize((string) $subtotal);
+        $minOrder = Money::normalize((string) ($this->min_order_amount ?? '0'));
+        if (Money::comp($sub, $minOrder) < 0) {
+            return 'Minimum order amount for this coupon is '.Money::toGateway($minOrder).'.';
         }
 
         return null;
     }
 
-    public function calculateDiscount(float $subtotal): float
+    public function calculateDiscount(string|int|float $subtotal): string
     {
-        if ($subtotal <= 0) {
-            return 0.0;
+        $sub = Money::normalize((string) $subtotal);
+        if (Money::comp($sub, '0') <= 0) {
+            return '0.0000';
         }
 
         $discount = $this->type === 'percent'
-            ? $subtotal * ((float) $this->value / 100)
-            : (float) $this->value;
+            ? Money::div(Money::mul($sub, (string) $this->value, 6), '100')
+            : Money::normalize((string) $this->value);
 
-        if ($this->max_discount_amount !== null && $discount > (float) $this->max_discount_amount) {
-            $discount = (float) $this->max_discount_amount;
+        if ($this->max_discount_amount !== null) {
+            $maxCap = Money::normalize((string) $this->max_discount_amount);
+            if (Money::comp($discount, $maxCap) > 0) {
+                $discount = $maxCap;
+            }
         }
 
-        return round(min($discount, $subtotal), 2);
+        return Money::min($discount, $sub);
     }
 }
