@@ -1,0 +1,19 @@
+{
+    "$schema": "vendor/infection/infection/resources/schema.json",
+    "source": {
+        "directories": [
+            "app/Services",
+            "app/Models/Coupon.php"
+        ]
+    },
+    "timeout": 15,
+    "logs": {
+        "text": "storage/logs/infection.log"
+    },
+    "mutators": {
+        "@default": true
+    },
+    "minMsi": 75,
+    "minCoveredMsi": 80,
+    "testFramework": "pest"
+}
