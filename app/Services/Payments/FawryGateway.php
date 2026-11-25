@@ -15,7 +15,11 @@ class FawryGateway implements PaymentGatewayInterface
         $securityKey = trim((string) ($config['security_key'] ?? ''));
 
         if ($merchantCode === '' || $securityKey === '') {
-            return ['success' => false, 'error' => 'Fawry merchant code or security key is not configured.'];
+            return ['success' => false, 'error' => __('Fawry merchant code or security key is not configured.')];
+        }
+
+        if (strtoupper(trim((string) $order->currency)) !== 'EGP') {
+            return ['success' => false, 'error' => __('Fawry only supports EGP currency.')];
         }
 
         $sandbox = (bool) ($config['sandbox'] ?? true);

@@ -38,6 +38,7 @@ class OrderService
         private readonly InventoryService $inventory,
         private readonly AuditLogger $audit,
         private readonly ShippingService $shipping,
+        private readonly SettingsService $settings,
     ) {}
 
     public static function allowedNextStatuses(string $currentStatus): array
@@ -119,6 +120,8 @@ class OrderService
             $shippingTotal = number_format($shippingCalc['rate'], 4, '.', '');
             $grandTotal = number_format($netSubtotal + $shippingCalc['rate'], 4, '.', '');
 
+            $currency = strtoupper(trim((string) $this->settings->get('currency', 'EGP'))) ?: 'EGP';
+
             $order = Order::query()->create([
                 'order_number' => 'ORD-'.now()->format('Ymd').'-'.strtoupper(Str::random(6)),
                 'user_id' => null,
@@ -139,7 +142,7 @@ class OrderService
                 'shipping_total' => $shippingTotal,
                 'tax_total' => '0.0000',
                 'grand_total' => $grandTotal,
-                'currency' => 'USD',
+                'currency' => $currency,
                 'notes' => $customerData['notes'] ?? null,
                 'idempotency_key' => $idempotencyKey,
             ]);

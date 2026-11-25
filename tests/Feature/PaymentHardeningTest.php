@@ -3,10 +3,17 @@
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
+use App\Models\PriceType;
+use App\Models\Product;
+use App\Models\ProductPrice;
+use App\Services\OrderService;
+use App\Services\Payments\FawryGateway;
+use App\Services\SettingsService;
 use Database\Seeders\RbacSeeder;
 use Database\Seeders\SettingsSeeder;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
     $this->seed([RbacSeeder::class, SettingsSeeder::class]);
@@ -100,4 +107,72 @@ it('does not change order state on paymentReturn when callback verification fail
 
     expect($order->fresh()->payment_status)->toBe('unpaid');
     expect($order->fresh()->status)->toBe('pending');
+});
+
+it('creates orders with currency from settings (default EGP) and snapshots it against later changes', function () {
+    $regular = PriceType::query()->where('slug', 'regular')->firstOrFail();
+    $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
+
+    $product = Product::query()->create([
+        'name' => 'Coffee Mug',
+        'slug' => 'coffee-mug',
+        'sku' => 'MUG-01',
+        'status' => 'published',
+        'visibility' => 'public',
+        'stock_quantity' => 10,
+        'track_inventory' => true,
+    ]);
+    ProductPrice::query()->create([
+        'product_id' => $product->id,
+        'price_type_id' => $regular->id,
+        'amount' => '100.0000',
+        'currency' => 'EGP',
+        'min_quantity' => 1,
+    ]);
+
+    /** @var SettingsService $settings */
+    $settings = app(SettingsService::class);
+    expect($settings->get('currency'))->toBe('EGP');
+
+    /** @var OrderService $orders */
+    $orders = app(OrderService::class);
+    $order = $orders->placeOrder(
+        ['customer_name' => 'Ali', 'customer_phone' => '01012345678'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id
+    );
+
+    expect($order->currency)->toBe('EGP');
+    expect($order->payments()->first()->currency)->toBe('EGP');
+
+    // Changing settings later must NOT mutate existing order's currency snapshot
+    $settings->set('currency', 'SAR', 'general', 'string', true);
+    expect($order->fresh()->currency)->toBe('EGP');
+});
+
+it('refuses to initiate Fawry payment when order currency is not EGP', function () {
+    Http::fake()->preventStrayRequests();
+
+    $fawry = PaymentMethod::query()->where('driver', 'fawry')->firstOrFail();
+    $fawry->update([
+        'is_active' => true,
+        'config' => ['sandbox' => true, 'merchant_code' => 'M123', 'security_key' => 'SEC456'],
+    ]);
+
+    $order = Order::query()->create([
+        'order_number' => 'ORD-USD-1',
+        'customer_name' => 'Ali',
+        'customer_phone' => '01012345678',
+        'payment_method_id' => $fawry->id,
+        'subtotal' => '100.0000',
+        'grand_total' => '100.0000',
+        'currency' => 'USD',
+    ]);
+
+    /** @var FawryGateway $gateway */
+    $gateway = app(FawryGateway::class);
+    $result = $gateway->initiate($order, $fawry, 'http://localhost/return', 'http://localhost/callback');
+
+    expect($result['success'])->toBeFalse();
+    expect($result['error'])->toContain('EGP');
 });

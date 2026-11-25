@@ -16,6 +16,12 @@ class MyFatoorahGateway implements PaymentGatewayInterface
             return ['success' => false, 'error' => 'MyFatoorah API key is not configured.'];
         }
 
+        $currency = strtoupper(trim((string) ($order->currency ?: 'EGP')));
+        $supportedCurrencies = ['KWD', 'SAR', 'BHD', 'AED', 'QAR', 'OMR', 'JOD', 'EGP', 'USD', 'EUR', 'GBP'];
+        if (! in_array($currency, $supportedCurrencies, true)) {
+            return ['success' => false, 'error' => __('Unsupported currency for MyFatoorah.')];
+        }
+
         $baseUrl = $this->baseUrl((bool) ($config['sandbox'] ?? true), $config['country'] ?? 'EGY');
 
         $response = Http::withToken($apiKey)
@@ -27,7 +33,7 @@ class MyFatoorahGateway implements PaymentGatewayInterface
                 'CustomerMobile' => preg_replace('/\D/', '', $order->customer_phone) ?: '0000000000',
                 'CustomerEmail' => $order->customer_email ?: 'customer@example.com',
                 'InvoiceValue' => round((float) $order->grand_total, 2),
-                'DisplayCurrencyIso' => $order->currency ?: 'USD',
+                'DisplayCurrencyIso' => $currency,
                 'CallBackUrl' => $returnUrl,
                 'ErrorUrl' => $returnUrl,
                 'CustomerReference' => $order->order_number,

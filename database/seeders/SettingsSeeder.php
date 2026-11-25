@@ -23,8 +23,8 @@ class SettingsSeeder extends Seeder
             ['general', 'contact_email', 'hello@sannafly.com', 'string', true],
             ['general', 'contact_phone', '+201000000000', 'string', true],
             ['general', 'whatsapp_number', '201000000000', 'string', true],
-            ['general', 'currency', 'USD', 'string', true],
-            ['general', 'currency_symbol', '$', 'string', true],
+            ['general', 'currency', 'EGP', 'string', true],
+            ['general', 'currency_symbol', 'ج.م', 'string', true],
 
             // Appearance / Customization (public)
             ['appearance', 'primary_color', '#0A5C57', 'string', true],
@@ -70,16 +70,16 @@ class SettingsSeeder extends Seeder
             ['seo', 'meta_description', 'Categorize your products. Display them beautifully. Sell faster.', 'string', true],
 
             // Legal Policies (public)
-            ['policies', 'policy_privacy', "We respect your privacy and protect your personal information. Data collected during checkout or account registration is used solely to process orders, provide customer support, and improve your shopping experience. We never sell or share your personal data with unauthorized third parties.", 'string', true],
-            ['policies', 'policy_privacy_ar', "نحترم خصوصيتك ونلتزم بحماية بياناتك الشخصية. تُستخدم البيانات المقدمة عند التسجيل أو إتمام الطلب فقط لتجهيز الطلبات وتقديم الدعم وتحسين تجربتك، ولا نشارك بياناتك مع أي أطراف غير مصرح لها.", 'string', true],
-            ['policies', 'policy_terms', "By placing an order on our store, you agree to provide accurate contact and delivery information. All prices include applicable store terms, and orders are subject to stock availability. We reserve the right to cancel or refuse orders in case of pricing errors or suspected fraud.", 'string', true],
-            ['policies', 'policy_terms_ar', "بإتمامك لأي طلب عبر المتجر، فإنك توافق على تقديم بيانات تواصل وتوصيل صحيحة. تخضع جميع الطلبات لتوفر المخزون، ويحق للمتجر إلغاء أي طلب في حال وجود خطأ تقني في السعر أو اشتباه في بيانات غير صحيحة.", 'string', true],
-            ['policies', 'policy_refund', "You may request a return or exchange within 14 days of delivery provided the item is unused, in its original packaging, and accompanied by the order receipt. Refunds for online payments are processed back to the original payment method within 5-10 business days after inspection.", 'string', true],
-            ['policies', 'policy_refund_ar', "يمكنك طلب الاستبدال أو الاسترجاع خلال 14 يوماً من تاريخ الاستلام بشرط أن يكون المنتج بحالته الأصلية ولم يُستخدم مع وجود فاتورة الطلب. يتم رد المبالغ المدفوعة إلكترونياً خلال 5 إلى 10 أيام عمل بعد فحص المنتج.", 'string', true],
+            ['policies', 'policy_privacy', 'We respect your privacy and protect your personal information. Data collected during checkout or account registration is used solely to process orders, provide customer support, and improve your shopping experience. We never sell or share your personal data with unauthorized third parties.', 'string', true],
+            ['policies', 'policy_privacy_ar', 'نحترم خصوصيتك ونلتزم بحماية بياناتك الشخصية. تُستخدم البيانات المقدمة عند التسجيل أو إتمام الطلب فقط لتجهيز الطلبات وتقديم الدعم وتحسين تجربتك، ولا نشارك بياناتك مع أي أطراف غير مصرح لها.', 'string', true],
+            ['policies', 'policy_terms', 'By placing an order on our store, you agree to provide accurate contact and delivery information. All prices include applicable store terms, and orders are subject to stock availability. We reserve the right to cancel or refuse orders in case of pricing errors or suspected fraud.', 'string', true],
+            ['policies', 'policy_terms_ar', 'بإتمامك لأي طلب عبر المتجر، فإنك توافق على تقديم بيانات تواصل وتوصيل صحيحة. تخضع جميع الطلبات لتوفر المخزون، ويحق للمتجر إلغاء أي طلب في حال وجود خطأ تقني في السعر أو اشتباه في بيانات غير صحيحة.', 'string', true],
+            ['policies', 'policy_refund', 'You may request a return or exchange within 14 days of delivery provided the item is unused, in its original packaging, and accompanied by the order receipt. Refunds for online payments are processed back to the original payment method within 5-10 business days after inspection.', 'string', true],
+            ['policies', 'policy_refund_ar', 'يمكنك طلب الاستبدال أو الاسترجاع خلال 14 يوماً من تاريخ الاستلام بشرط أن يكون المنتج بحالته الأصلية ولم يُستخدم مع وجود فاتورة الطلب. يتم رد المبالغ المدفوعة إلكترونياً خلال 5 إلى 10 أيام عمل بعد فحص المنتج.', 'string', true],
             ['policies', 'about_title', 'About Sannafly', 'string', true],
             ['policies', 'about_title_ar', 'عن صنّفلي', 'string', true],
-            ['policies', 'about_body', "Sannafly is built for modern merchants and shoppers who value clarity, quality, and speed. We organize curated products with transparent pricing, real-time stock, and reliable delivery.", 'string', true],
-            ['policies', 'about_body_ar', "صنّفلي منصة متكاملة صُممت للتجار والمتسوقين الباحثين عن الوضوح والجودة والسرعة. نعرض منتجات مختارة بعناية مع أسعار واضحة، ومخزون محدث لحظياً، وتوصيل موثوق.", 'string', true],
+            ['policies', 'about_body', 'Sannafly is built for modern merchants and shoppers who value clarity, quality, and speed. We organize curated products with transparent pricing, real-time stock, and reliable delivery.', 'string', true],
+            ['policies', 'about_body_ar', 'صنّفلي منصة متكاملة صُممت للتجار والمتسوقين الباحثين عن الوضوح والجودة والسرعة. نعرض منتجات مختارة بعناية مع أسعار واضحة، ومخزون محدث لحظياً، وتوصيل موثوق.', 'string', true],
 
             // Promotions: Announcement / News Bar & Popup (public)
             ['promotions', 'promo_bar_enabled', true, 'boolean', true],
