@@ -67,4 +67,14 @@ class ProductVariation extends Model
 
         return hash('sha256', implode('-', $sorted));
     }
+
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+
+    public function isPurchasable(): bool
+    {
+        return ! $this->trashed() && $this->status === 'active';
+    }
 }

@@ -139,16 +139,29 @@ class CartCheckoutController extends Controller
             ? ProductVariation::query()->where('product_id', $product->id)->with(['prices.priceType', 'images'])->findOrFail($data['variation_id'])
             : null;
 
+        if (! $product->isPurchasable() || ($variation && ! $variation->isPurchasable())) {
+            return back()->with('error', __('This product is not available for purchase.'));
+        }
+
+        if ($variation && ! $this->settings->isEnabled('module_variations', true)) {
+            return back()->with('error', __('Product variations are currently disabled.'));
+        }
+
+        $key = $product->id.'-'.($variation?->id ?? '0');
+        $cart = $request->session()->get('cart', []);
+        $newQuantity = ($cart[$key]['quantity'] ?? 0) + (int) $data['quantity'];
+
+        if ($newQuantity > 1000 || ! $product->hasAvailableStock($newQuantity, $variation)) {
+            return back()->with('error', __('Requested quantity exceeds available stock.'));
+        }
+
         $price = $variation?->prices->first()?->amount ?? $product->prices->firstWhere('priceType.slug', 'sale')?->amount ?? $product->prices->first()?->amount ?? '0.00';
         $varImg = $variation?->images->first();
         $baseImg = $product->images->firstWhere('is_main', true) ?? $product->images->first();
         $image = $varImg?->thumbnail_path ?? $varImg?->path ?? $baseImg?->thumbnail_path ?? $baseImg?->path;
 
-        $key = $product->id.'-'.($variation?->id ?? '0');
-        $cart = $request->session()->get('cart', []);
-
         if (isset($cart[$key])) {
-            $cart[$key]['quantity'] += (int) $data['quantity'];
+            $cart[$key]['quantity'] = $newQuantity;
         } else {
             $cart[$key] = [
                 'key' => $key,
@@ -184,6 +197,23 @@ class CartCheckoutController extends Controller
 
         $cart = $request->session()->get('cart', []);
         if (isset($cart[$key])) {
+            $item = $cart[$key];
+            $product = Product::query()->find($item['product_id']);
+            $variation = ! empty($item['variation_id'])
+                ? ProductVariation::query()->where('product_id', $item['product_id'])->find($item['variation_id'])
+                : null;
+
+            if (! $product || ! $product->isPurchasable() || ($variation && ! $variation->isPurchasable())) {
+                unset($cart[$key]);
+                $request->session()->put('cart', $cart);
+
+                return back()->with('error', __('This product is no longer available.'));
+            }
+
+            if (! $product->hasAvailableStock((int) $data['quantity'], $variation)) {
+                return back()->with('error', __('Requested quantity exceeds available stock.'));
+            }
+
             $cart[$key]['quantity'] = (int) $data['quantity'];
             $request->session()->put('cart', $cart);
         }

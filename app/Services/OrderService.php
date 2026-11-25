@@ -77,24 +77,33 @@ class OrderService
             return DB::transaction(function () use ($customerData, $cartItems, $paymentMethodId, $scopedKey, $couponCode) {
                 $paymentMethod = PaymentMethod::query()->where('is_active', true)->findOrFail($paymentMethodId);
 
-                // Sort items by product_id to acquire row locks in deterministic order and avoid deadlocks
-                usort($cartItems, fn ($a, $b) => ($a['product_id'] <=> $b['product_id']));
+                // Sort items by (product_id, variation_id) to acquire row locks in deterministic order and avoid deadlocks
+                usort($cartItems, fn ($a, $b) => [$a['product_id'], $a['variation_id'] ?? 0] <=> [$b['product_id'], $b['variation_id'] ?? 0]);
 
                 $subtotal = '0.0000';
                 $preparedItems = [];
 
                 foreach ($cartItems as $item) {
-                    $qty = max(1, (int) $item['quantity']);
+                    $qty = (int) ($item['quantity'] ?? 0);
+                    if ($qty < 1 || $qty > 1000) {
+                        throw new RuntimeException('Invalid item quantity.');
+                    }
+
                     $product = Product::query()->with(['prices.priceType'])->lockForUpdate()->findOrFail($item['product_id']);
+                    if (! $product->isPurchasable()) {
+                        throw new RuntimeException("Product {$product->name} is not available for purchase.");
+                    }
+
                     $variation = ! empty($item['variation_id'])
                         ? ProductVariation::query()->where('product_id', $product->id)->with('prices.priceType')->lockForUpdate()->findOrFail($item['variation_id'])
                         : null;
 
-                    if ($product->track_inventory && ! $product->allow_backorder) {
-                        $available = $variation ? $variation->stock_quantity : $product->stock_quantity;
-                        if ($available < $qty && ! $product->allow_negative_stock) {
-                            throw new RuntimeException("Insufficient stock for {$product->name}.");
-                        }
+                    if ($variation && ! $variation->isPurchasable()) {
+                        throw new RuntimeException("Variation {$variation->name} is not available for purchase.");
+                    }
+
+                    if (! $product->hasAvailableStock($qty, $variation)) {
+                        throw new RuntimeException("Insufficient stock for {$product->name}.");
                     }
 
                     $unitPrice = $this->resolveUnitPrice($product, $variation, $qty);

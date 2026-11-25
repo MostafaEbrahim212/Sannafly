@@ -118,6 +118,29 @@ class Product extends Model
         return $this->hasMany(Wishlist::class);
     }
 
+    public function scopePurchasable($query)
+    {
+        return $query->where('status', 'published')->where('visibility', '!=', 'private');
+    }
+
+    public function isPurchasable(): bool
+    {
+        return ! $this->trashed()
+            && $this->status === 'published'
+            && $this->visibility !== 'private';
+    }
+
+    public function hasAvailableStock(int $quantity, ?ProductVariation $variation = null): bool
+    {
+        if (! $this->track_inventory || $this->allow_backorder || $this->allow_negative_stock) {
+            return true;
+        }
+
+        $available = $variation ? $variation->stock_quantity : $this->stock_quantity;
+
+        return $available >= $quantity;
+    }
+
     public function effectiveStock(): int
     {
         if ($this->has_variations && $this->relationLoaded('variations')) {
