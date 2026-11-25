@@ -85,9 +85,8 @@ class MyFatoorahGateway implements PaymentGatewayInterface
 
         $data = $json['Data'] ?? [];
         $invoiceStatus = strtolower((string) ($data['InvoiceStatus'] ?? ''));
-        $rawAmount = $data['InvoiceValue'] ?? null;
-        $amount = $rawAmount !== null && $rawAmount !== '' ? Money::toGateway((string) $rawAmount) : null;
-        $currency = $data['DisplayCurrencyIso'] ?? $data['InvoiceTransactions'][0]['Currency'] ?? null;
+
+        [$amount, $currency] = $this->extractAmountAndCurrency($data);
 
         return [
             'verified' => true,
@@ -95,8 +94,73 @@ class MyFatoorahGateway implements PaymentGatewayInterface
             'transaction_id' => isset($data['InvoiceId']) ? (string) $data['InvoiceId'] : (string) $paymentId,
             'status' => $invoiceStatus === 'paid' ? 'completed' : ($invoiceStatus === 'pending' ? 'pending' : 'failed'),
             'amount' => $amount,
-            'currency' => is_string($currency) && trim($currency) !== '' ? strtoupper(trim($currency)) : null,
+            'currency' => $currency,
             'raw' => $data,
+        ];
+    }
+
+    /**
+     * Extract normalized gateway amount and ISO currency from MyFatoorah GetPaymentStatus Data.
+     *
+     * MyFatoorah sandbox/multi-currency accounts convert InvoiceValue into the merchant's
+     * settlement currency (e.g. KWD/KD) while preserving the customer-facing display amount
+     * and currency in InvoiceDisplayValue (e.g. "159.000 LE").
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function extractAmountAndCurrency(array $data): array
+    {
+        $explicitIso = $data['DisplayCurrencyIso'] ?? null;
+        if (is_string($explicitIso) && trim($explicitIso) !== '') {
+            $rawAmount = $data['InvoiceValue'] ?? null;
+            $amount = $rawAmount !== null && $rawAmount !== '' ? Money::toGateway((string) $rawAmount) : null;
+
+            return [$amount, strtoupper(trim($explicitIso))];
+        }
+
+        $displayValue = $data['InvoiceDisplayValue'] ?? null;
+        if (is_string($displayValue) && preg_match('/^\s*([\d,]+(?:\.\d+)?)\s*([A-Za-z\p{Arabic}\$€£]+)\s*$/u', $displayValue, $matches)) {
+            $numeric = str_replace(',', '', $matches[1]);
+            $symbol = strtoupper(trim($matches[2]));
+            $currencyMap = [
+                'LE' => 'EGP',
+                'EGP' => 'EGP',
+                'E£' => 'EGP',
+                'ج.م' => 'EGP',
+                'KD' => 'KWD',
+                'KWD' => 'KWD',
+                'SR' => 'SAR',
+                'SAR' => 'SAR',
+                'AED' => 'AED',
+                'BD' => 'BHD',
+                'BHD' => 'BHD',
+                'QR' => 'QAR',
+                'QAR' => 'QAR',
+                'OR' => 'OMR',
+                'OMR' => 'OMR',
+                'JD' => 'JOD',
+                'JOD' => 'JOD',
+                'USD' => 'USD',
+                '$' => 'USD',
+                'EUR' => 'EUR',
+                '€' => 'EUR',
+                'GBP' => 'GBP',
+                '£' => 'GBP',
+            ];
+
+            $mappedCurrency = $currencyMap[$symbol] ?? (strlen($symbol) === 3 ? $symbol : null);
+            if ($mappedCurrency !== null) {
+                return [Money::toGateway($numeric), $mappedCurrency];
+            }
+        }
+
+        $rawAmount = $data['InvoiceValue'] ?? null;
+        $amount = $rawAmount !== null && $rawAmount !== '' ? Money::toGateway((string) $rawAmount) : null;
+        $txCurrency = $data['InvoiceTransactions'][0]['Currency'] ?? null;
+
+        return [
+            $amount,
+            is_string($txCurrency) && trim($txCurrency) !== '' ? strtoupper(trim($txCurrency)) : null,
         ];
     }
 

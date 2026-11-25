@@ -628,3 +628,46 @@ it('generates server-side idempotency key in session when client omits it so dou
 
     expect(Order::query()->count())->toBe(1);
 });
+
+it('verifies MyFatoorah sandbox payment when InvoiceValue is converted to merchant KWD while InvoiceDisplayValue is EGP LE', function () {
+    $mf = PaymentMethod::query()->where('driver', 'myfatoorah')->firstOrFail();
+    $mf->update(['is_active' => true, 'config' => ['sandbox' => true, 'country' => 'EGY', 'api_key' => 'test-key']]);
+
+    $order = Order::query()->create([
+        'order_number' => 'ORD-MF-SANDBOX-LE',
+        'customer_name' => 'Mostafa',
+        'customer_phone' => '01011479294',
+        'payment_method_id' => $mf->id,
+        'subtotal' => '159.0000',
+        'grand_total' => '159.0000',
+        'currency' => 'EGP',
+    ]);
+    Payment::query()->create([
+        'order_id' => $order->id,
+        'payment_method_id' => $mf->id,
+        'amount' => '159.0000',
+        'currency' => 'EGP',
+        'status' => 'pending',
+    ]);
+
+    Http::fake([
+        'https://apitest.myfatoorah.com/v2/GetPaymentStatus' => Http::response([
+            'IsSuccess' => true,
+            'Data' => [
+                'InvoiceId' => 7416400,
+                'InvoiceStatus' => 'Paid',
+                'CustomerReference' => 'ORD-MF-SANDBOX-LE',
+                'InvoiceValue' => 0.942,
+                'InvoiceDisplayValue' => '159.000 LE',
+                'InvoiceTransactions' => [
+                    ['Currency' => 'KD', 'PaidCurrency' => 'KD', 'TransationValue' => '0.942'],
+                ],
+            ],
+        ]),
+    ])->preventStrayRequests();
+
+    $this->get('/payments/return/myfatoorah?paymentId=07077416400398031171')->assertRedirect();
+
+    expect($order->fresh()->payment_status)->toBe('paid');
+    expect($order->fresh()->status)->toBe('confirmed');
+});
