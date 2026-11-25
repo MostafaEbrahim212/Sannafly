@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 class ShippingZone extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'name',
         'name_ar',
