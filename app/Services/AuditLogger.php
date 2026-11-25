@@ -36,7 +36,10 @@ class AuditLogger
         ?User $actor = null,
         ?Request $request = null,
     ): AuditLog {
-        $actor ??= Auth::user();
+        $actor ??= Auth::guard('web')->user();
+        if (! $actor instanceof User) {
+            $actor = null;
+        }
         $request ??= request();
 
         return AuditLog::query()->create([

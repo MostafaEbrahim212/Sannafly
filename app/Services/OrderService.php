@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Coupon;
+use App\Models\CouponRedemption;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
@@ -121,6 +122,9 @@ class OrderService
 
                 $coupon = null;
                 $discountTotal = '0.0000';
+                $customerId = Auth::guard('customer')->id();
+                $normalizedPhone = preg_replace('/\D+/', '', (string) ($customerData['customer_phone'] ?? '')) ?: null;
+
                 if ($couponCode) {
                     $normalizedCode = strtoupper(trim($couponCode));
                     $coupon = Coupon::query()->where('code', $normalizedCode)->lockForUpdate()->first();
@@ -129,6 +133,22 @@ class OrderService
                     }
                     if ($error = $coupon->isValidForAmount($subtotal)) {
                         throw new RuntimeException($error);
+                    }
+                    if ($coupon->usage_limit_per_customer !== null) {
+                        $usedByCustomer = CouponRedemption::query()
+                            ->where('coupon_id', $coupon->id)
+                            ->where(function ($q) use ($customerId, $normalizedPhone) {
+                                if ($customerId) {
+                                    $q->where('customer_id', $customerId);
+                                } elseif ($normalizedPhone) {
+                                    $q->where('customer_phone', $normalizedPhone);
+                                }
+                            })
+                            ->count();
+
+                        if ($usedByCustomer >= $coupon->usage_limit_per_customer) {
+                            throw new RuntimeException('You have reached the usage limit for this coupon.');
+                        }
                     }
                     $discountTotal = $coupon->calculateDiscount($subtotal);
                     $coupon->increment('used_count');
@@ -169,6 +189,16 @@ class OrderService
                     'notes' => $customerData['notes'] ?? null,
                     'idempotency_key' => $scopedKey,
                 ]);
+
+                if ($coupon) {
+                    CouponRedemption::query()->create([
+                        'coupon_id' => $coupon->id,
+                        'customer_id' => $customerId,
+                        'customer_phone' => $normalizedPhone,
+                        'order_id' => $order->id,
+                        'created_at' => now(),
+                    ]);
+                }
 
                 foreach ($preparedItems as $line) {
                     /** @var Product $p */
@@ -353,6 +383,8 @@ class OrderService
         if (! $locked->coupon_id) {
             return;
         }
+
+        CouponRedemption::query()->where('order_id', $locked->id)->delete();
 
         $coupon = Coupon::query()->whereKey($locked->coupon_id)->lockForUpdate()->first();
         if ($coupon && $coupon->used_count > 0) {

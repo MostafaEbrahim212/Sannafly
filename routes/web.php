@@ -44,10 +44,10 @@ Route::get('/sitemap.xml', [StorefrontController::class, 'sitemap'])->name('site
 
 // Optional E-Commerce Storefront
 Route::get('/cart', [CartCheckoutController::class, 'cart'])->name('cart');
-Route::post('/cart/add', [CartCheckoutController::class, 'addToCart'])->name('cart.add');
+Route::post('/cart/add', [CartCheckoutController::class, 'addToCart'])->middleware('throttle:30,1')->name('cart.add');
 Route::put('/cart/{key}', [CartCheckoutController::class, 'updateCartQuantity'])->name('cart.update');
 Route::delete('/cart/{key}', [CartCheckoutController::class, 'removeFromCart'])->name('cart.remove');
-Route::post('/cart/coupon', [CartCheckoutController::class, 'applyCoupon'])->name('cart.coupon.apply');
+Route::post('/cart/coupon', [CartCheckoutController::class, 'applyCoupon'])->middleware('throttle:10,1')->name('cart.coupon.apply');
 Route::delete('/cart/coupon', [CartCheckoutController::class, 'removeCoupon'])->name('cart.coupon.remove');
 Route::post('/checkout', [CartCheckoutController::class, 'checkout'])->middleware('throttle:10,1')->name('checkout');
 Route::get('/payments/return/{driver}', [CartCheckoutController::class, 'paymentReturn'])->name('payments.return');
@@ -58,7 +58,7 @@ Route::get('/track-order', [CartCheckoutController::class, 'trackOrder'])->name(
 // Storefront Customer Authentication
 Route::middleware('guest:customer')->group(function () {
     Route::get('/login', [CustomerAuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [CustomerAuthController::class, 'login'])->name('login.attempt');
+    Route::post('/login', [CustomerAuthController::class, 'login'])->middleware('throttle:10,1')->name('login.attempt');
     Route::get('/register', [CustomerAuthController::class, 'showRegister'])->name('register');
     Route::post('/register', [CustomerAuthController::class, 'register'])->name('register.attempt');
     Route::get('/forgot-password', [PasswordResetController::class, 'showForgotForm'])->name('password.request');
@@ -79,13 +79,13 @@ Route::middleware('auth:customer')->group(function () {
     Route::delete('/profile/addresses/{address}', [CustomerProfileController::class, 'destroyAddress'])->name('customer.addresses.destroy');
     Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist.index');
     Route::post('/wishlist/toggle', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
-    Route::post('/products/{product}/reviews', [ProductReviewController::class, 'store'])->name('products.reviews.store');
+    Route::post('/products/{product}/reviews', [ProductReviewController::class, 'store'])->middleware('throttle:10,1')->name('products.reviews.store');
 });
 
 // Admin Authentication (completely separated from Customer)
 Route::prefix('admin')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->middleware('guest:web')->name('admin.login');
-    Route::post('/login', [AuthController::class, 'login'])->middleware('guest:web')->name('admin.login.attempt');
+    Route::post('/login', [AuthController::class, 'login'])->middleware(['guest:web', 'throttle:10,1'])->name('admin.login.attempt');
     Route::get('/forgot-password', [PasswordResetController::class, 'showForgotForm'])->middleware('guest:web')->name('admin.password.request');
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->middleware(['guest:web', 'throttle:5,1'])->name('admin.password.email');
     Route::get('/reset-password/{token}', [PasswordResetController::class, 'showResetForm'])->middleware('guest:web')->name('admin.password.reset');

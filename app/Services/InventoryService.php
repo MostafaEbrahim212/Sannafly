@@ -60,7 +60,7 @@ class InventoryService
             $movement = StockMovement::query()->create([
                 'product_id' => $lockedProduct->id,
                 'variation_id' => $variation?->id,
-                'user_id' => Auth::id(),
+                'user_id' => Auth::guard('web')->id(),
                 'type' => $type,
                 'quantity_change' => $quantityChange,
                 'quantity_before' => $before,

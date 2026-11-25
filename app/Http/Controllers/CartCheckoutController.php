@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Coupon;
+use App\Models\CouponRedemption;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Payment;
@@ -241,6 +242,16 @@ class CartCheckoutController extends Controller
 
         if ($error = $coupon->isValidForAmount($subtotal)) {
             return back()->with('error', __($error));
+        }
+
+        if ($coupon->usage_limit_per_customer !== null && ($customer = Auth::guard('customer')->user())) {
+            $usedCount = CouponRedemption::query()
+                ->where('coupon_id', $coupon->id)
+                ->where('customer_id', $customer->id)
+                ->count();
+            if ($usedCount >= $coupon->usage_limit_per_customer) {
+                return back()->with('error', __('You have reached the usage limit for this coupon.'));
+            }
         }
 
         $request->session()->put('cart_coupon_code', $coupon->code);

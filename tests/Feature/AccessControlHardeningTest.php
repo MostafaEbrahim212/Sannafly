@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Coupon;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Payment;
@@ -208,4 +209,117 @@ it('normalizes Egyptian phone numbers on track-order and throttles abuse', funct
         }
     }
     expect($hit429)->toBeTrue();
+});
+
+it('throttles coupon apply, cart add, and review submission endpoints', function () {
+    $product = createTestProduct(['stock_quantity' => 50]);
+
+    $couponHit429 = false;
+    for ($i = 0; $i < 15; $i++) {
+        if ($this->post('/cart/coupon', ['code' => 'NOPE'])->getStatusCode() === 429) {
+            $couponHit429 = true;
+            break;
+        }
+    }
+    expect($couponHit429)->toBeTrue();
+
+    $cartHit429 = false;
+    for ($i = 0; $i < 35; $i++) {
+        if ($this->post('/cart/add', ['product_id' => $product->id, 'quantity' => 1])->getStatusCode() === 429) {
+            $cartHit429 = true;
+            break;
+        }
+    }
+    expect($cartHit429)->toBeTrue();
+
+    $customer = Customer::query()->create([
+        'name' => 'Reviewer',
+        'email' => 'rev@example.com',
+        'phone' => '01012345678',
+        'password' => 'secret123',
+        'status' => 'active',
+    ]);
+    $reviewHit429 = false;
+    for ($i = 0; $i < 15; $i++) {
+        if ($this->actingAs($customer, 'customer')->post("/products/{$product->id}/reviews", ['rating' => 5, 'comment' => 'Nice'])->getStatusCode() === 429) {
+            $reviewHit429 = true;
+            break;
+        }
+    }
+    expect($reviewHit429)->toBeTrue();
+});
+
+it('enforces per-customer coupon usage_limit_per_customer and releases redemption on cancel', function () {
+    $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
+    $product = createTestProduct(['stock_quantity' => 20]);
+
+    $coupon = Coupon::query()->create([
+        'code' => 'ONCEPERUSER',
+        'name' => 'Once Per User',
+        'type' => 'fixed',
+        'value' => '10.0000',
+        'usage_limit' => 10,
+        'usage_limit_per_customer' => 1,
+        'used_count' => 0,
+        'is_active' => true,
+    ]);
+
+    $customerA = Customer::query()->create([
+        'name' => 'Customer A',
+        'email' => 'ca@example.com',
+        'phone' => '01011111111',
+        'password' => 'secret123',
+        'status' => 'active',
+    ]);
+    $customerB = Customer::query()->create([
+        'name' => 'Customer B',
+        'email' => 'cb@example.com',
+        'phone' => '01022222222',
+        'password' => 'secret123',
+        'status' => 'active',
+    ]);
+
+    /** @var OrderService $orders */
+    $orders = app(OrderService::class);
+
+    $this->actingAs($customerA, 'customer');
+    $orderA1 = $orders->placeOrder(
+        ['customer_name' => 'Customer A', 'customer_phone' => '01011111111'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id,
+        null,
+        'ONCEPERUSER'
+    );
+
+    // Second order by Customer A with same coupon must fail
+    expect(fn () => $orders->placeOrder(
+        ['customer_name' => 'Customer A', 'customer_phone' => '01011111111'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id,
+        null,
+        'ONCEPERUSER'
+    ))->toThrow(RuntimeException::class);
+
+    // Customer B can still use it
+    $this->actingAs($customerB, 'customer');
+    $orderB1 = $orders->placeOrder(
+        ['customer_name' => 'Customer B', 'customer_phone' => '01022222222'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id,
+        null,
+        'ONCEPERUSER'
+    );
+    expect($orderB1->coupon_code)->toBe('ONCEPERUSER');
+
+    // Cancelling Customer A's order releases the redemption so Customer A can use it again
+    $orders->cancelOrder($orderA1);
+    $this->actingAs($customerA, 'customer');
+    $orderA2 = $orders->placeOrder(
+        ['customer_name' => 'Customer A', 'customer_phone' => '01011111111'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id,
+        null,
+        'ONCEPERUSER'
+    );
+    expect($orderA2->coupon_code)->toBe('ONCEPERUSER');
 });

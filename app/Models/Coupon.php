@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Coupon extends Model
 {
@@ -15,6 +16,7 @@ class Coupon extends Model
         'min_order_amount',
         'max_discount_amount',
         'usage_limit',
+        'usage_limit_per_customer',
         'used_count',
         'starts_at',
         'expires_at',
@@ -28,11 +30,17 @@ class Coupon extends Model
             'min_order_amount' => 'decimal:4',
             'max_discount_amount' => 'decimal:4',
             'usage_limit' => 'integer',
+            'usage_limit_per_customer' => 'integer',
             'used_count' => 'integer',
             'starts_at' => 'datetime',
             'expires_at' => 'datetime',
             'is_active' => 'boolean',
         ];
+    }
+
+    public function redemptions(): HasMany
+    {
+        return $this->hasMany(CouponRedemption::class);
     }
 
     public function isValidForAmount(string|int|float $subtotal): ?string
