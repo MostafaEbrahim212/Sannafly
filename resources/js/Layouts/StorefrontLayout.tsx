@@ -168,7 +168,7 @@ export default function StorefrontLayout({ children }: StorefrontLayoutProps) {
                             placeholder={t('search_placeholder')}
                             className="w-full ps-5 pe-11 py-2.5 rounded-full border border-slate-200 bg-slate-50 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
                         />
-                        <button type="submit" className="absolute end-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
+                        <button type="submit" aria-label={t('search')} className="absolute end-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
                             <Search className="w-4 h-4" />
                         </button>
                     </form>
