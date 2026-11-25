@@ -29,3 +29,8 @@ Sannafly is a modular, monolith-first Laravel + React + TypeScript + Inertia.js 
 - **Context:** Short 6-character suffixes on `ORD-YYYYMMDD-XXXXXX` are easier to enumerate.
 - **Decision:** Use `ORD-YYYYMMDD-{10-char CSPRNG}` (`Str::random(10)` uppercase) with uniqueness collision retry, paired with ownership/session/signed-URL authorization on `/orders/confirmation/{orderNumber}`.
 - **Consequences:** Order numbers remain human-readable for support and Fawry/MyFatoorah references while resisting enumeration.
+
+### ADR-004: Content-Security-Policy Report-Only Rollout
+- **Context:** Enforcing a strict CSP immediately can break inline Inertia initial-page JSON or third-party payment redirects before violations are observed.
+- **Decision:** Deploy `Content-Security-Policy-Report-Only` by default via `config/security.php` (`SECURITY_CSP_REPORT_ONLY=true`), with Vite dev server relaxations only in `local` environment, plus `Cross-Origin-Opener-Policy: same-origin` and HSTS only on HTTPS in `production`.
+- **Consequences:** Operators can monitor CSP reports safely and flip `SECURITY_CSP_REPORT_ONLY=false` once verified in staging.
