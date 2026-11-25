@@ -112,7 +112,10 @@ class CartCheckoutController extends Controller
                 ->orderBy('sort_order')
                 ->get(['id', 'name', 'name_ar', 'cities', 'rate', 'free_shipping_threshold', 'estimated_days', 'is_default']),
             'appliedCoupon' => $appliedCoupon,
-            'idempotencyKey' => Str::uuid()->toString(),
+            'idempotencyKey' => tap(
+                $request->session()->get('checkout_idempotency_key') ?: Str::uuid()->toString(),
+                fn (string $key) => $request->session()->put('checkout_idempotency_key', $key)
+            ),
         ]);
     }
 
@@ -251,13 +254,25 @@ class CartCheckoutController extends Controller
         $cart = array_values($request->session()->get('cart', []));
         $couponCode = $request->input('coupon_code') ?: $request->session()->get('cart_coupon_code');
 
+        $idempotencyKey = $data['idempotency_key'] ?? null;
+        if (! is_string($idempotencyKey) || trim($idempotencyKey) === '') {
+            $idempotencyKey = $request->session()->get('checkout_idempotency_key');
+            if (! is_string($idempotencyKey) || $idempotencyKey === '') {
+                $idempotencyKey = Str::uuid()->toString();
+                $request->session()->put('checkout_idempotency_key', $idempotencyKey);
+            }
+        }
+
+        $actorScope = $customer ? "customer:{$customer->id}" : 'session:'.$request->session()->getId();
+
         try {
             $order = $this->orderService->placeOrder(
                 $data,
                 $cart,
                 (int) $data['payment_method_id'],
-                $data['idempotency_key'] ?? null,
-                $couponCode ?: null
+                $idempotencyKey,
+                $couponCode ?: null,
+                $actorScope
             );
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
@@ -278,7 +293,7 @@ class CartCheckoutController extends Controller
             ]);
         }
 
-        $request->session()->forget(['cart', 'cart_coupon_code']);
+        $request->session()->forget(['cart', 'cart_coupon_code', 'checkout_idempotency_key']);
 
         $method = $order->paymentMethod;
         $gateway = $method ? $this->gatewayManager->resolve($method) : null;

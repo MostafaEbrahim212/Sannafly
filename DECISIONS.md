@@ -19,3 +19,8 @@ Sannafly is a modular, monolith-first Laravel + React + TypeScript + Inertia.js 
 - **Context:** Previously `OrderService::ALLOWED_TRANSITIONS['shipped']` included `'cancelled'`, which called `restoreOrderStock(..., 'release')` even though physical inventory had already left the warehouse with the courier.
 - **Decision:** Remove `'cancelled'` from `ALLOWED_TRANSITIONS['shipped']`. Shipped orders can only transition to `'delivered'` or `'returned'` (and from `'returned'` to `'refunded'`).
 - **Consequences:** Inventory is only restored for shipped orders when a physical return is recorded (`returned`), preventing phantom stock inflation.
+
+### ADR-002: Actor-Scoped Idempotency Keys
+- **Context:** Raw client-supplied `idempotency_key` values were previously stored globally, allowing another client who guessed or replayed a key to fetch someone else's order.
+- **Decision:** Hash `"{actor_scope}|{idempotency_key}"` with SHA-256, where `actor_scope` is `customer:{id}` (authenticated) or `session:{id}` (guest). Server-generated session keys are used when the client omits one.
+- **Consequences:** Cross-actor key collisions are impossible, and concurrent duplicate submits catch `UniqueConstraintViolationException` and return the existing order safely.

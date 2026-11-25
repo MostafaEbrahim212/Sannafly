@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\ProductVariation;
 use App\Notifications\OrderStatusNotification;
 use App\Services\Payments\PaymentGatewayManager;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -48,10 +49,20 @@ class OrderService
         return self::ALLOWED_TRANSITIONS[$currentStatus] ?? [];
     }
 
-    public function placeOrder(array $customerData, array $cartItems, int $paymentMethodId, ?string $idempotencyKey = null, ?string $couponCode = null): Order
-    {
-        if ($idempotencyKey) {
-            $existing = Order::query()->where('idempotency_key', $idempotencyKey)->first();
+    public function placeOrder(
+        array $customerData,
+        array $cartItems,
+        int $paymentMethodId,
+        ?string $idempotencyKey = null,
+        ?string $couponCode = null,
+        ?string $actorScope = null,
+    ): Order {
+        $scopedKey = null;
+        if ($idempotencyKey !== null && trim($idempotencyKey) !== '') {
+            $scope = $actorScope ?? $this->resolveActorScope();
+            $scopedKey = hash('sha256', $scope.'|'.trim($idempotencyKey));
+
+            $existing = $this->findExistingByScopedKey($scopedKey);
             if ($existing) {
                 return $existing->load(['items', 'paymentMethod']);
             }
@@ -61,141 +72,170 @@ class OrderService
             throw new RuntimeException('Cart is empty.');
         }
 
-        return DB::transaction(function () use ($customerData, $cartItems, $paymentMethodId, $idempotencyKey, $couponCode) {
-            $paymentMethod = PaymentMethod::query()->where('is_active', true)->findOrFail($paymentMethodId);
+        try {
+            return DB::transaction(function () use ($customerData, $cartItems, $paymentMethodId, $scopedKey, $couponCode) {
+                $paymentMethod = PaymentMethod::query()->where('is_active', true)->findOrFail($paymentMethodId);
 
-            // Sort items by product_id to acquire row locks in deterministic order and avoid deadlocks
-            usort($cartItems, fn ($a, $b) => ($a['product_id'] <=> $b['product_id']));
+                // Sort items by product_id to acquire row locks in deterministic order and avoid deadlocks
+                usort($cartItems, fn ($a, $b) => ($a['product_id'] <=> $b['product_id']));
 
-            $subtotal = '0.0000';
-            $preparedItems = [];
+                $subtotal = '0.0000';
+                $preparedItems = [];
 
-            foreach ($cartItems as $item) {
-                $qty = max(1, (int) $item['quantity']);
-                $product = Product::query()->with(['prices.priceType'])->lockForUpdate()->findOrFail($item['product_id']);
-                $variation = ! empty($item['variation_id'])
-                    ? ProductVariation::query()->where('product_id', $product->id)->with('prices.priceType')->lockForUpdate()->findOrFail($item['variation_id'])
-                    : null;
+                foreach ($cartItems as $item) {
+                    $qty = max(1, (int) $item['quantity']);
+                    $product = Product::query()->with(['prices.priceType'])->lockForUpdate()->findOrFail($item['product_id']);
+                    $variation = ! empty($item['variation_id'])
+                        ? ProductVariation::query()->where('product_id', $product->id)->with('prices.priceType')->lockForUpdate()->findOrFail($item['variation_id'])
+                        : null;
 
-                if ($product->track_inventory && ! $product->allow_backorder) {
-                    $available = $variation ? $variation->stock_quantity : $product->stock_quantity;
-                    if ($available < $qty && ! $product->allow_negative_stock) {
-                        throw new RuntimeException("Insufficient stock for {$product->name}.");
+                    if ($product->track_inventory && ! $product->allow_backorder) {
+                        $available = $variation ? $variation->stock_quantity : $product->stock_quantity;
+                        if ($available < $qty && ! $product->allow_negative_stock) {
+                            throw new RuntimeException("Insufficient stock for {$product->name}.");
+                        }
+                    }
+
+                    $unitPrice = $this->resolveUnitPrice($product, $variation, $qty);
+                    $lineTotal = bcmul($unitPrice, (string) $qty, 4);
+                    $subtotal = bcadd($subtotal, $lineTotal, 4);
+
+                    $preparedItems[] = [
+                        'product' => $product,
+                        'variation' => $variation,
+                        'quantity' => $qty,
+                        'unit_price' => $unitPrice,
+                        'total_price' => $lineTotal,
+                    ];
+                }
+
+                $coupon = null;
+                $discountTotal = '0.0000';
+                if ($couponCode) {
+                    $normalizedCode = strtoupper(trim($couponCode));
+                    $coupon = Coupon::query()->where('code', $normalizedCode)->lockForUpdate()->first();
+                    if (! $coupon) {
+                        throw new RuntimeException('Invalid coupon code.');
+                    }
+                    if ($error = $coupon->isValidForAmount((float) $subtotal)) {
+                        throw new RuntimeException($error);
+                    }
+                    $discountFloat = $coupon->calculateDiscount((float) $subtotal);
+                    $discountTotal = number_format($discountFloat, 4, '.', '');
+                    $coupon->increment('used_count');
+                }
+
+                $netSubtotal = max(0.0, (float) $subtotal - (float) $discountTotal);
+                $city = is_array($customerData['shipping_address'] ?? null) ? ($customerData['shipping_address']['city'] ?? null) : null;
+                $isPickup = $paymentMethod->driver === 'cash';
+                $shippingCalc = $isPickup
+                    ? ['zone' => null, 'rate' => 0.0, 'free_shipping' => true]
+                    : $this->shipping->calculateForCity($city, $netSubtotal);
+                $shippingTotal = number_format($shippingCalc['rate'], 4, '.', '');
+                $grandTotal = number_format($netSubtotal + $shippingCalc['rate'], 4, '.', '');
+
+                $currency = strtoupper(trim((string) $this->settings->get('currency', 'EGP'))) ?: 'EGP';
+
+                $order = Order::query()->create([
+                    'order_number' => 'ORD-'.now()->format('Ymd').'-'.strtoupper(Str::random(6)),
+                    'user_id' => null,
+                    'customer_id' => Auth::guard('customer')->id(),
+                    'customer_name' => $customerData['customer_name'],
+                    'customer_email' => $customerData['customer_email'] ?? null,
+                    'customer_phone' => $customerData['customer_phone'],
+                    'shipping_address' => $customerData['shipping_address'] ?? null,
+                    'status' => 'pending',
+                    'payment_status' => 'unpaid',
+                    'payment_method_id' => $paymentMethod->id,
+                    'coupon_id' => $coupon?->id,
+                    'coupon_code' => $coupon?->code,
+                    'shipping_zone_id' => $shippingCalc['zone']?->id,
+                    'shipping_zone_name' => $isPickup ? 'Store Pickup' : $shippingCalc['zone']?->name,
+                    'subtotal' => $subtotal,
+                    'discount_total' => $discountTotal,
+                    'shipping_total' => $shippingTotal,
+                    'tax_total' => '0.0000',
+                    'grand_total' => $grandTotal,
+                    'currency' => $currency,
+                    'notes' => $customerData['notes'] ?? null,
+                    'idempotency_key' => $scopedKey,
+                ]);
+
+                foreach ($preparedItems as $line) {
+                    /** @var Product $p */
+                    $p = $line['product'];
+                    /** @var ProductVariation|null $v */
+                    $v = $line['variation'];
+
+                    OrderItem::query()->create([
+                        'order_id' => $order->id,
+                        'product_id' => $p->id,
+                        'variation_id' => $v?->id,
+                        'product_name' => $v ? "{$p->name} ({$v->name})" : $p->name,
+                        'sku' => $v ? $v->sku : $p->sku,
+                        'quantity' => $line['quantity'],
+                        'unit_price' => $line['unit_price'],
+                        'total_price' => $line['total_price'],
+                    ]);
+
+                    if ($p->track_inventory) {
+                        $this->inventory->adjustStock(
+                            $p,
+                            -$line['quantity'],
+                            'reservation',
+                            $v,
+                            "Reserved for order {$order->order_number}",
+                            'Order',
+                            $order->id
+                        );
                     }
                 }
 
-                $unitPrice = $this->resolveUnitPrice($product, $variation, $qty);
-                $lineTotal = bcmul($unitPrice, (string) $qty, 4);
-                $subtotal = bcadd($subtotal, $lineTotal, 4);
-
-                $preparedItems[] = [
-                    'product' => $product,
-                    'variation' => $variation,
-                    'quantity' => $qty,
-                    'unit_price' => $unitPrice,
-                    'total_price' => $lineTotal,
-                ];
-            }
-
-            $coupon = null;
-            $discountTotal = '0.0000';
-            if ($couponCode) {
-                $normalizedCode = strtoupper(trim($couponCode));
-                $coupon = Coupon::query()->where('code', $normalizedCode)->lockForUpdate()->first();
-                if (! $coupon) {
-                    throw new RuntimeException('Invalid coupon code.');
-                }
-                if ($error = $coupon->isValidForAmount((float) $subtotal)) {
-                    throw new RuntimeException($error);
-                }
-                $discountFloat = $coupon->calculateDiscount((float) $subtotal);
-                $discountTotal = number_format($discountFloat, 4, '.', '');
-                $coupon->increment('used_count');
-            }
-
-            $netSubtotal = max(0.0, (float) $subtotal - (float) $discountTotal);
-            $city = is_array($customerData['shipping_address'] ?? null) ? ($customerData['shipping_address']['city'] ?? null) : null;
-            $isPickup = $paymentMethod->driver === 'cash';
-            $shippingCalc = $isPickup
-                ? ['zone' => null, 'rate' => 0.0, 'free_shipping' => true]
-                : $this->shipping->calculateForCity($city, $netSubtotal);
-            $shippingTotal = number_format($shippingCalc['rate'], 4, '.', '');
-            $grandTotal = number_format($netSubtotal + $shippingCalc['rate'], 4, '.', '');
-
-            $currency = strtoupper(trim((string) $this->settings->get('currency', 'EGP'))) ?: 'EGP';
-
-            $order = Order::query()->create([
-                'order_number' => 'ORD-'.now()->format('Ymd').'-'.strtoupper(Str::random(6)),
-                'user_id' => null,
-                'customer_id' => Auth::guard('customer')->id(),
-                'customer_name' => $customerData['customer_name'],
-                'customer_email' => $customerData['customer_email'] ?? null,
-                'customer_phone' => $customerData['customer_phone'],
-                'shipping_address' => $customerData['shipping_address'] ?? null,
-                'status' => 'pending',
-                'payment_status' => 'unpaid',
-                'payment_method_id' => $paymentMethod->id,
-                'coupon_id' => $coupon?->id,
-                'coupon_code' => $coupon?->code,
-                'shipping_zone_id' => $shippingCalc['zone']?->id,
-                'shipping_zone_name' => $isPickup ? 'Store Pickup' : $shippingCalc['zone']?->name,
-                'subtotal' => $subtotal,
-                'discount_total' => $discountTotal,
-                'shipping_total' => $shippingTotal,
-                'tax_total' => '0.0000',
-                'grand_total' => $grandTotal,
-                'currency' => $currency,
-                'notes' => $customerData['notes'] ?? null,
-                'idempotency_key' => $idempotencyKey,
-            ]);
-
-            foreach ($preparedItems as $line) {
-                /** @var Product $p */
-                $p = $line['product'];
-                /** @var ProductVariation|null $v */
-                $v = $line['variation'];
-
-                OrderItem::query()->create([
+                Payment::query()->create([
                     'order_id' => $order->id,
-                    'product_id' => $p->id,
-                    'variation_id' => $v?->id,
-                    'product_name' => $v ? "{$p->name} ({$v->name})" : $p->name,
-                    'sku' => $v ? $v->sku : $p->sku,
-                    'quantity' => $line['quantity'],
-                    'unit_price' => $line['unit_price'],
-                    'total_price' => $line['total_price'],
+                    'payment_method_id' => $paymentMethod->id,
+                    'amount' => $order->grand_total,
+                    'currency' => $order->currency,
+                    'status' => 'pending',
                 ]);
 
-                if ($p->track_inventory) {
-                    $this->inventory->adjustStock(
-                        $p,
-                        -$line['quantity'],
-                        'reservation',
-                        $v,
-                        "Reserved for order {$order->order_number}",
-                        'Order',
-                        $order->id
-                    );
+                $this->audit->log('order.created', 'Order', $order->id, null, [
+                    'order_number' => $order->order_number,
+                    'grand_total' => $order->grand_total,
+                ]);
+
+                $this->notifyCustomer($order, true);
+
+                return $order->load(['items', 'paymentMethod']);
+            });
+        } catch (UniqueConstraintViolationException $e) {
+            if ($scopedKey !== null) {
+                $existing = $this->findExistingByScopedKey($scopedKey);
+                if ($existing) {
+                    return $existing->load(['items', 'paymentMethod']);
                 }
             }
 
-            Payment::query()->create([
-                'order_id' => $order->id,
-                'payment_method_id' => $paymentMethod->id,
-                'amount' => $order->grand_total,
-                'currency' => $order->currency,
-                'status' => 'pending',
-            ]);
+            throw $e;
+        }
+    }
 
-            $this->audit->log('order.created', 'Order', $order->id, null, [
-                'order_number' => $order->order_number,
-                'grand_total' => $order->grand_total,
-            ]);
+    protected function findExistingByScopedKey(string $scopedKey): ?Order
+    {
+        return Order::query()->where('idempotency_key', $scopedKey)->first();
+    }
 
-            $this->notifyCustomer($order, true);
+    private function resolveActorScope(): string
+    {
+        if ($customerId = Auth::guard('customer')->id()) {
+            return 'customer:'.$customerId;
+        }
 
-            return $order->load(['items', 'paymentMethod']);
-        });
+        if (request()->hasSession()) {
+            return 'session:'.request()->session()->getId();
+        }
+
+        return 'cli';
     }
 
     public function transitionStatus(Order $order, string $newStatus, ?string $paymentStatus = null, bool $restockOnRefund = true): Order

@@ -8,11 +8,16 @@ use App\Models\PaymentMethod;
 use App\Models\PriceType;
 use App\Models\Product;
 use App\Models\ProductPrice;
+use App\Services\AuditLogger;
+use App\Services\InventoryService;
 use App\Services\OrderService;
 use App\Services\Payments\FawryGateway;
+use App\Services\Payments\PaymentGatewayManager;
 use App\Services\SettingsService;
+use App\Services\ShippingService;
 use Database\Seeders\RbacSeeder;
 use Database\Seeders\SettingsSeeder;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Http;
@@ -473,4 +478,153 @@ it('forbids cancelling an order once it has been shipped', function () {
 
     expect(fn () => $orders->cancelOrder($order))
         ->toThrow(RuntimeException::class);
+});
+
+it('scopes idempotency keys to the actor so another actor cannot hijack an order', function () {
+    $regular = PriceType::query()->where('slug', 'regular')->firstOrFail();
+    $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
+
+    $product = Product::query()->create([
+        'name' => 'Headset',
+        'slug' => 'headset',
+        'sku' => 'HEAD-01',
+        'status' => 'published',
+        'visibility' => 'public',
+        'stock_quantity' => 10,
+        'track_inventory' => true,
+    ]);
+    ProductPrice::query()->create([
+        'product_id' => $product->id,
+        'price_type_id' => $regular->id,
+        'amount' => '100.0000',
+        'currency' => 'EGP',
+        'min_quantity' => 1,
+    ]);
+
+    /** @var OrderService $orders */
+    $orders = app(OrderService::class);
+
+    $orderA = $orders->placeOrder(
+        ['customer_name' => 'Actor A', 'customer_phone' => '01011111111'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id,
+        'shared-client-key',
+        null,
+        'customer:1'
+    );
+
+    $orderB = $orders->placeOrder(
+        ['customer_name' => 'Actor B', 'customer_phone' => '01022222222'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id,
+        'shared-client-key',
+        null,
+        'customer:2'
+    );
+
+    expect($orderA->id)->not->toBe($orderB->id);
+    expect($orderA->customer_name)->toBe('Actor A');
+    expect($orderB->customer_name)->toBe('Actor B');
+});
+
+it('handles UniqueConstraintViolationException on idempotency_key race and returns existing order', function () {
+    $regular = PriceType::query()->where('slug', 'regular')->firstOrFail();
+    $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
+
+    $product = Product::query()->create([
+        'name' => 'Webcam',
+        'slug' => 'webcam',
+        'sku' => 'CAM-01',
+        'status' => 'published',
+        'visibility' => 'public',
+        'stock_quantity' => 10,
+        'track_inventory' => true,
+    ]);
+    ProductPrice::query()->create([
+        'product_id' => $product->id,
+        'price_type_id' => $regular->id,
+        'amount' => '100.0000',
+        'currency' => 'EGP',
+        'min_quantity' => 1,
+    ]);
+
+    $scopedKey = hash('sha256', 'customer:99|race-key-2');
+    Order::query()->create([
+        'order_number' => 'ORD-RACE-WIN',
+        'customer_name' => 'Race Winner',
+        'customer_phone' => '01011111111',
+        'payment_method_id' => $cod->id,
+        'subtotal' => '100.0000',
+        'grand_total' => '100.0000',
+        'currency' => 'EGP',
+        'idempotency_key' => $scopedKey,
+    ]);
+
+    // Simulate a true race: pre-check returns null (other worker hasn't committed yet),
+    // then INSERT hits UniqueConstraintViolationException, and catch() re-fetches the winner.
+    $raceService = new class(app(InventoryService::class), app(AuditLogger::class), app(ShippingService::class), app(SettingsService::class), app(PaymentGatewayManager::class)) extends OrderService
+    {
+        private int $calls = 0;
+
+        protected function findExistingByScopedKey(string $scopedKey): ?Order
+        {
+            $this->calls++;
+
+            return $this->calls === 1 ? null : parent::findExistingByScopedKey($scopedKey);
+        }
+    };
+
+    $raced = $raceService->placeOrder(
+        ['customer_name' => 'Race Loser', 'customer_phone' => '01011111111'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id,
+        'race-key-2',
+        null,
+        'customer:99'
+    );
+
+    expect($raced->order_number)->toBe('ORD-RACE-WIN');
+});
+
+it('generates server-side idempotency key in session when client omits it so double-submit creates only one order', function () {
+    $regular = PriceType::query()->where('slug', 'regular')->firstOrFail();
+    $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
+
+    $product = Product::query()->create([
+        'name' => 'Monitor',
+        'slug' => 'monitor',
+        'sku' => 'MON-01',
+        'status' => 'published',
+        'visibility' => 'public',
+        'stock_quantity' => 10,
+        'track_inventory' => true,
+    ]);
+    ProductPrice::query()->create([
+        'product_id' => $product->id,
+        'price_type_id' => $regular->id,
+        'amount' => '500.0000',
+        'currency' => 'EGP',
+        'min_quantity' => 1,
+    ]);
+
+    $this->post('/cart/add', ['product_id' => $product->id, 'quantity' => 1]);
+    $this->get('/cart')->assertOk();
+
+    // First submit without idempotency_key
+    $this->post('/checkout', [
+        'customer_name' => 'Double Submitter',
+        'customer_phone' => '01012345678',
+        'shipping_address' => ['city' => 'Cairo', 'street' => '123 Nile St'],
+        'payment_method_id' => $cod->id,
+    ])->assertRedirect();
+
+    // Second submit without idempotency_key (simulating double-click)
+    $this->post('/checkout', [
+        'customer_name' => 'Double Submitter',
+        'customer_phone' => '01012345678',
+        'shipping_address' => ['city' => 'Cairo', 'street' => '123 Nile St'],
+        'payment_method_id' => $cod->id,
+    ])->assertRedirect();
+
+    expect(Order::query()->count())->toBe(1);
 });
