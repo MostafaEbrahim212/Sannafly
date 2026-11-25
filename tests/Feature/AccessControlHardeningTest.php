@@ -323,3 +323,50 @@ it('enforces per-customer coupon usage_limit_per_customer and releases redemptio
     );
     expect($orderA2->coupon_code)->toBe('ONCEPERUSER');
 });
+
+it('forbids updating or deleting audit logs at both model and database level', function () {
+    /** @var \App\Services\AuditLogger $logger */
+    $logger = app(\App\Services\AuditLogger::class);
+    $log = $logger->log('test.immutable', 'Order', 1, null, ['note' => 'initial']);
+
+    expect(fn () => $log->update(['action' => 'tampered']))->toThrow(LogicException::class);
+    expect(fn () => $log->delete())->toThrow(LogicException::class);
+
+    // Direct DB-level update/delete bypassing Eloquent must also be blocked by trigger
+    expect(fn () => \Illuminate\Support\Facades\DB::table('audit_logs')->where('id', $log->id)->update(['action' => 'tampered']))
+        ->toThrow(\Illuminate\Database\QueryException::class);
+    expect(fn () => \Illuminate\Support\Facades\DB::table('audit_logs')->where('id', $log->id)->delete())
+        ->toThrow(\Illuminate\Database\QueryException::class);
+});
+
+it('does not persist phantom audit logs when a transaction rolls back and redacts sensitive keys', function () {
+    /** @var \App\Services\AuditLogger $logger */
+    $logger = app(\App\Services\AuditLogger::class);
+
+    try {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($logger) {
+            $logger->log('test.should_rollback', 'Order', 999);
+            throw new RuntimeException('Simulated failure');
+        });
+    } catch (RuntimeException) {
+    }
+
+    expect(\App\Models\AuditLog::query()->where('action', 'test.should_rollback')->exists())->toBeFalse();
+
+    $redacted = $logger->log('test.redaction', 'User', 1, [
+        'password' => 'plain-pass',
+        'security_key' => 'fawry-sec',
+    ], [
+        'token' => 'tok-123',
+        'secret' => 'sec-456',
+        'api_key' => 'key-789',
+        'safe' => 'visible',
+    ]);
+
+    expect($redacted->old_values['password'])->toBe('[REDACTED]');
+    expect($redacted->old_values['security_key'])->toBe('[REDACTED]');
+    expect($redacted->new_values['token'])->toBe('[REDACTED]');
+    expect($redacted->new_values['secret'])->toBe('[REDACTED]');
+    expect($redacted->new_values['api_key'])->toBe('[REDACTED]');
+    expect($redacted->new_values['safe'])->toBe('visible');
+});

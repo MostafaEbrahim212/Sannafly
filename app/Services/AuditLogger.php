@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class AuditLogger
 {
@@ -22,6 +23,11 @@ class AuditLogger
         'two_factor_recovery_codes',
         'api_key',
         'api_secret',
+        'security_key',
+        'private_key',
+        'access_token',
+        'refresh_token',
+        'authorization',
         'secret',
         'token',
         'config',
@@ -35,14 +41,15 @@ class AuditLogger
         ?array $newValues = null,
         ?User $actor = null,
         ?Request $request = null,
-    ): AuditLog {
+        bool $afterCommit = true,
+    ): ?AuditLog {
         $actor ??= Auth::guard('web')->user();
         if (! $actor instanceof User) {
             $actor = null;
         }
         $request ??= request();
 
-        return AuditLog::query()->create([
+        $attributes = [
             'user_id' => $actor?->id,
             'actor_name' => $actor?->name ?? 'System',
             'action' => $action,
@@ -53,7 +60,15 @@ class AuditLogger
             'ip_address' => $request?->ip(),
             'user_agent' => $request?->userAgent() ? substr((string) $request->userAgent(), 0, 500) : null,
             'created_at' => now(),
-        ]);
+        ];
+
+        if ($afterCommit && DB::transactionLevel() > 0 && ! app()->runningUnitTests()) {
+            DB::afterCommit(static fn () => AuditLog::query()->create($attributes));
+
+            return null;
+        }
+
+        return AuditLog::query()->create($attributes);
     }
 
     private function sanitize(array $data): array
