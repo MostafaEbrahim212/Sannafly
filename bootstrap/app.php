@@ -29,6 +29,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'active' => EnsureUserIsActive::class,
         ]);
 
+        $middleware->validateCsrfTokens(except: [
+            'payments/callback/*',
+        ]);
+
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('admin*') ? '/admin/login' : '/login');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
