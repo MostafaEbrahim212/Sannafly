@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { KeyRound, MapPin, Plus, ShoppingBag, Star, Trash2, User } from 'lucide-react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
+import { EGYPT_GOVERNORATES } from '@/lib/governorates';
 import { useTranslation } from '@/lib/i18n';
 
 interface Address {
@@ -281,14 +282,20 @@ export default function Profile({
                                         onChange={(e) => addrForm.setData('country', e.target.value)}
                                         className="px-3.5 py-2 rounded-xl border border-slate-200 text-sm"
                                     />
-                                    <input
-                                        type="text"
-                                        placeholder={locale === 'ar' ? 'المحافظة / المدينة *' : 'City *'}
+                                    <select
+                                        aria-label={locale === 'ar' ? 'المحافظة' : 'Governorate'}
                                         value={addrForm.data.city}
                                         onChange={(e) => addrForm.setData('city', e.target.value)}
-                                        className="px-3.5 py-2 rounded-xl border border-slate-200 text-sm"
+                                        className="px-3.5 py-2 rounded-xl border border-slate-200 text-sm bg-white"
                                         required
-                                    />
+                                    >
+                                        <option value="">{locale === 'ar' ? 'اختر المحافظة *' : 'Select Governorate *'}</option>
+                                        {EGYPT_GOVERNORATES.map((gov) => (
+                                            <option key={gov.code} value={gov.en}>
+                                                {locale === 'ar' ? gov.ar : gov.en}
+                                            </option>
+                                        ))}
+                                    </select>
                                     <input
                                         type="text"
                                         placeholder={locale === 'ar' ? 'المنطقة / الحي' : 'Area / District'}

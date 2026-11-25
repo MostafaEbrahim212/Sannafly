@@ -40,15 +40,26 @@ class ShippingZone extends Model
             return false;
         }
 
-        $needle = mb_strtolower(trim($city));
+        $needle = $this->normalizeCity($city);
         foreach ($this->cities as $entry) {
-            $candidate = mb_strtolower(trim((string) $entry));
+            $candidate = $this->normalizeCity((string) $entry);
             if ($candidate !== '' && (str_contains($needle, $candidate) || str_contains($candidate, $needle))) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private function normalizeCity(string $value): string
+    {
+        $normalized = mb_strtolower(trim($value));
+
+        return str_replace(
+            ['أ', 'إ', 'آ', 'ة', 'ى'],
+            ['ا', 'ا', 'ا', 'ه', 'ي'],
+            $normalized
+        );
     }
 
     public function calculateRate(string|int|float $subtotalAfterDiscount): string

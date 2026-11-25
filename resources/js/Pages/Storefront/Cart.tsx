@@ -3,6 +3,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { CreditCard, MapPin, Minus, Package, Plus, ShieldCheck, ShoppingBag, Tag, Trash2, Truck, X } from 'lucide-react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
 import SeoHead from '@/Components/SeoHead';
+import { EGYPT_GOVERNORATES } from '@/lib/governorates';
 import { useTranslation } from '@/lib/i18n';
 import type { PageProps } from '@/types';
 
@@ -347,19 +348,31 @@ export default function Cart({ items, savedAddresses = [], paymentMethods, shipp
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
-                                        <input
-                                            type="text"
-                                            placeholder={locale === 'ar' ? 'المحافظة / المدينة *' : 'City *'}
+                                        <select
+                                            aria-label={locale === 'ar' ? 'المحافظة' : 'Governorate'}
                                             value={form.data.shipping_address.city}
                                             onChange={(e) => form.setData('shipping_address', { ...form.data.shipping_address, city: e.target.value })}
                                             className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:bg-white"
                                             required
-                                        />
+                                        >
+                                            <option value="">{locale === 'ar' ? 'اختر المحافظة *' : 'Select Governorate *'}</option>
+                                            {EGYPT_GOVERNORATES.map((gov) => (
+                                                <option key={gov.code} value={gov.en}>
+                                                    {locale === 'ar' ? gov.ar : gov.en}
+                                                </option>
+                                            ))}
+                                            {form.data.shipping_address.city &&
+                                                !EGYPT_GOVERNORATES.some(
+                                                    (g) => g.en.toLowerCase() === form.data.shipping_address.city.toLowerCase() || g.ar === form.data.shipping_address.city
+                                                ) && (
+                                                    <option value={form.data.shipping_address.city}>{form.data.shipping_address.city}</option>
+                                                )}
+                                        </select>
                                         {err['shipping_address.city'] && <p className="text-xs text-red-600 mt-1">{err['shipping_address.city']}</p>}
                                     </div>
                                     <input
                                         type="text"
-                                        placeholder={locale === 'ar' ? 'المنطقة / الحي' : 'Area / District'}
+                                        placeholder={locale === 'ar' ? 'المدينة / المنطقة / الحي' : 'City / Area / District'}
                                         value={form.data.shipping_address.area}
                                         onChange={(e) => form.setData('shipping_address', { ...form.data.shipping_address, area: e.target.value })}
                                         className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:bg-white"

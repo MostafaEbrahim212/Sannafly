@@ -75,4 +75,8 @@ it('matches shipping zones by English/Arabic city names and applies free-shippin
 
     $resFallback = $shipping->calculateForCity('Aswan', '200.0000');
     expect($resFallback['rate'])->toBe('75.0000');
+
+    // Arabic normalization: القاهره (ه) matches القاهرة (ة)
+    $resNormalized = $shipping->calculateForCity('القاهره', '250.0000');
+    expect($resNormalized['zone']->id)->toBe($cairo->id);
 });
