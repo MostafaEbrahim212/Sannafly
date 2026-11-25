@@ -30,21 +30,21 @@ it('allows customer to request a reset link and reset their password', function 
 
     $customer = Customer::query()->create([
         'name' => 'Reset User',
-        'email' => 'reset@catalogflow.test',
+        'email' => 'reset@Sannafly.test',
         'phone' => '01099999999',
         'password' => 'oldpassword123',
         'status' => 'active',
     ]);
 
     $this->get('/forgot-password')->assertOk();
-    $this->post('/forgot-password', ['email' => 'reset@catalogflow.test'])->assertRedirect();
+    $this->post('/forgot-password', ['email' => 'reset@Sannafly.test'])->assertRedirect();
 
     $token = Password::broker('customers')->createToken($customer);
 
-    $this->get("/reset-password/{$token}?email=reset@catalogflow.test")->assertOk();
+    $this->get("/reset-password/{$token}?email=reset@Sannafly.test")->assertOk();
     $this->post('/reset-password', [
         'token' => $token,
-        'email' => 'reset@catalogflow.test',
+        'email' => 'reset@Sannafly.test',
         'password' => 'newpassword123',
         'password_confirmation' => 'newpassword123',
     ])->assertRedirect('/login');
@@ -56,7 +56,7 @@ it('allows customer to request a reset link and reset their password', function 
 it('allows admin to request a reset link and reset their password', function () {
     Notification::fake();
 
-    $admin = User::query()->where('email', 'admin@catalogflow.test')->firstOrFail();
+    $admin = User::query()->where('email', 'admin@Sannafly.test')->firstOrFail();
 
     $this->get('/admin/forgot-password')->assertOk();
     $this->post('/admin/forgot-password', ['email' => $admin->email])->assertRedirect();

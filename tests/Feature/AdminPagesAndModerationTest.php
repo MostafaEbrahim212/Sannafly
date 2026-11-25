@@ -9,7 +9,7 @@ use Database\Seeders\SettingsSeeder;
 
 beforeEach(function () {
     $this->seed([RbacSeeder::class, SettingsSeeder::class]);
-    $this->admin = User::query()->where('email', 'admin@catalogflow.test')->firstOrFail();
+    $this->admin = User::query()->where('email', 'admin@Sannafly.test')->firstOrFail();
 });
 
 it('renders about and contact pages and submits general contact inquiry', function () {

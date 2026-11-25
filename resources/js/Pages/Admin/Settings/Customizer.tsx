@@ -27,7 +27,7 @@ export default function Customizer({
     const [tab, setTab] = useState<'brand' | 'hero' | 'layout' | 'promos'>('brand');
     const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
 
-    const [siteName, setSiteName] = useState(general.site_name || 'CatalogFlow');
+    const [siteName, setSiteName] = useState(general.site_name || 'Sannafly');
     const [siteNameAr, setSiteNameAr] = useState(general.site_name_ar || 'كتالوج فلو');
     const [siteDesc, setSiteDesc] = useState(general.site_description || '');
     const [siteDescAr, setSiteDescAr] = useState(general.site_description_ar || '');

@@ -10,7 +10,7 @@ use Illuminate\Http\UploadedFile;
 
 beforeEach(function () {
     $this->seed([RbacSeeder::class, SettingsSeeder::class, DemoCatalogSeeder::class]);
-    $this->admin = User::query()->where('email', 'admin@catalogflow.test')->firstOrFail();
+    $this->admin = User::query()->where('email', 'admin@Sannafly.test')->firstOrFail();
 });
 
 it('exports full product details CSV with formula injection protection', function () {

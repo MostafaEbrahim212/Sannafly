@@ -163,7 +163,7 @@ it('requires shipping address on checkout and saves address for logged-in custom
 
     $customer = \App\Models\Customer::query()->create([
         'name' => 'Tarek',
-        'email' => 'tarek@catalogflow.test',
+        'email' => 'tarek@Sannafly.test',
         'phone' => '01033334444',
         'status' => 'active',
         'password' => \Illuminate\Support\Facades\Hash::make('Password123!'),

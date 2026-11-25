@@ -112,7 +112,7 @@ export default function Dashboard({ stats, lowStockProducts, recentProducts, rec
                 <div>
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-teal-300 text-xs font-medium mb-2.5">
                         <Sparkles className="w-3.5 h-3.5" />
-                        <span>{settings.site_name || 'CatalogFlow'}</span>
+                        <span>{settings.site_name || 'Sannafly'}</span>
                     </div>
                     <h2 className="text-xl sm:text-2xl font-bold">
                         {locale === 'ar' ? `مرحباً، ${auth.user?.name}` : `Welcome back, ${auth.user?.name}`}

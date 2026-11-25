@@ -25,7 +25,7 @@ export default function SeoHead({
     const { settings } = usePage<PageProps>().props;
     const { localized, locale } = useTranslation();
 
-    const siteName = localized(settings.site_name || 'CatalogFlow', settings.site_name_ar);
+    const siteName = localized(settings.site_name || 'Sannafly', settings.site_name_ar);
     const fullTitle = title.includes(siteName) ? title : `${title} | ${siteName}`;
     const metaDesc = description || settings.meta_description || localized(settings.site_description, settings.site_description_ar) || '';
 

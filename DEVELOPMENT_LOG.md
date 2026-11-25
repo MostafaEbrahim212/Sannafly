@@ -1,7 +1,7 @@
-# CatalogFlow — Development Log
+# Sannafly — Development Log
 
 ## Session 1 — 2026-11-25
-- **Temporary Project Name:** `catalogflow` (`C:\laragon\www\catalogflow`)
+- **Temporary Project Name:** `Sannafly` (`C:\laragon\www\Sannafly`)
 - **Completed:**
   - **Phase 1 (Foundation):** Laravel 13 + Inertia.js + React 19 + TypeScript + Tailwind CSS v4 + Pest + Intervention Image + SimpleXLSX/SimpleXLSXGen. EN/AR localization (`SetLocale` middleware) with LTR/RTL support.
   - **Phase 2 (Users, RBAC & Security):** Granular RBAC (`roles`, `permissions`, `role_permission`, `user_role`, `user_permission`), `CheckPermission` & `EnsureUserIsActive` & `SecurityHeaders` middleware, rate-limited `AuthController`, User/Role CRUD, `AuditLogger` with sensitive key redaction, Audit Log viewer.

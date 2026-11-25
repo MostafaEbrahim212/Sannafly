@@ -57,7 +57,7 @@ export default function StorefrontLayout({ children }: StorefrontLayoutProps) {
         }
     }, [flash?.success, flash?.error]);
 
-    const siteName = localized(settings.site_name || 'CatalogFlow', settings.site_name_ar);
+    const siteName = localized(settings.site_name || 'Sannafly', settings.site_name_ar);
     const primaryColor = settings.primary_color || '#0f766e';
 
     const handleSearch = (e: React.FormEvent) => {

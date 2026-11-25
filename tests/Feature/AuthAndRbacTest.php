@@ -14,7 +14,7 @@ beforeEach(function () {
 
 it('allows active admin to login at /admin/login and records audit log without password', function () {
     $response = $this->post('/admin/login', [
-        'email' => 'admin@catalogflow.test',
+        'email' => 'admin@Sannafly.test',
         'password' => 'Password123!',
     ]);
 
@@ -29,7 +29,7 @@ it('allows active admin to login at /admin/login and records audit log without p
 it('blocks inactive and suspended admins from logging in or accessing dashboard', function () {
     $user = User::query()->create([
         'name' => 'Inactive User',
-        'email' => 'inactive@catalogflow.test',
+        'email' => 'inactive@Sannafly.test',
         'status' => 'suspended',
         'password' => Hash::make('Password123!'),
     ]);
@@ -37,7 +37,7 @@ it('blocks inactive and suspended admins from logging in or accessing dashboard'
     $user->roles()->attach($adminRole->id);
 
     $this->post('/admin/login', [
-        'email' => 'inactive@catalogflow.test',
+        'email' => 'inactive@Sannafly.test',
         'password' => 'Password123!',
     ])->assertSessionHasErrors('email');
 
@@ -49,7 +49,7 @@ it('blocks inactive and suspended admins from logging in or accessing dashboard'
 it('enforces granular permissions and prevents privilege escalation', function () {
     $viewer = User::query()->create([
         'name' => 'Viewer User',
-        'email' => 'viewer@catalogflow.test',
+        'email' => 'viewer@Sannafly.test',
         'status' => 'active',
         'password' => Hash::make('Password123!'),
     ]);
@@ -66,13 +66,13 @@ it('enforces granular permissions and prevents privilege escalation', function (
 it('rate limits brute force admin login attempts', function () {
     for ($i = 0; $i < 5; $i++) {
         $this->post('/admin/login', [
-            'email' => 'admin@catalogflow.test',
+            'email' => 'admin@Sannafly.test',
             'password' => 'WrongPassword!',
         ]);
     }
 
     $response = $this->post('/admin/login', [
-        'email' => 'admin@catalogflow.test',
+        'email' => 'admin@Sannafly.test',
         'password' => 'WrongPassword!',
     ]);
 
@@ -80,7 +80,7 @@ it('rate limits brute force admin login attempts', function () {
 });
 
 it('allows authenticated admin to update profile and change password securely', function () {
-    $admin = User::query()->where('email', 'admin@catalogflow.test')->firstOrFail();
+    $admin = User::query()->where('email', 'admin@Sannafly.test')->firstOrFail();
 
     $this->actingAs($admin, 'web')->get('/admin/profile')->assertOk();
 
@@ -104,7 +104,7 @@ it('registers and authenticates customers completely separately from admin users
 
     $response = $this->post('/register', [
         'name' => 'Customer User',
-        'email' => 'customer@catalogflow.test',
+        'email' => 'customer@Sannafly.test',
         'phone' => '01011223344',
         'password' => 'Customer123!',
         'password_confirmation' => 'Customer123!',
@@ -114,8 +114,8 @@ it('registers and authenticates customers completely separately from admin users
     $this->assertAuthenticated('customer');
     $this->assertGuest('web');
 
-    expect(Customer::query()->where('email', 'customer@catalogflow.test')->exists())->toBeTrue();
-    expect(User::query()->where('email', 'customer@catalogflow.test')->exists())->toBeFalse();
+    expect(Customer::query()->where('email', 'customer@Sannafly.test')->exists())->toBeTrue();
+    expect(User::query()->where('email', 'customer@Sannafly.test')->exists())->toBeFalse();
 
     // Customer cannot access admin portal and is redirected to /admin/login
     $this->get('/admin')->assertRedirect('/admin/login');
@@ -124,7 +124,7 @@ it('registers and authenticates customers completely separately from admin users
     $this->get('/my-orders')->assertOk();
 
     // Customer can manage their profile and addresses, and IDOR is blocked
-    $customer = Customer::query()->where('email', 'customer@catalogflow.test')->firstOrFail();
+    $customer = Customer::query()->where('email', 'customer@Sannafly.test')->firstOrFail();
     $this->get('/profile')->assertOk();
 
     $this->post('/profile/addresses', [
@@ -141,7 +141,7 @@ it('registers and authenticates customers completely separately from admin users
     // Another customer cannot edit or delete this address (IDOR protection)
     $otherCustomer = Customer::query()->create([
         'name' => 'Other',
-        'email' => 'other@catalogflow.test',
+        'email' => 'other@Sannafly.test',
         'status' => 'active',
         'password' => Hash::make('Password123!'),
     ]);

@@ -43,7 +43,7 @@ class GenerateProductImages extends Command
 
                 $palette = $this->palettes[$product->id % count($this->palettes)];
                 $label = strtoupper(Str::limit(preg_replace('/[^A-Za-z0-9 ]/', '', $product->name) ?: $product->sku, 22, ''));
-                $sub = strtoupper($product->category?->name ?? 'CATALOGFLOW');
+                $sub = strtoupper($product->category?->name ?? 'Sannafly');
                 $sku = strtoupper($product->sku);
 
                 $baseName = Str::uuid()->toString();
@@ -173,7 +173,7 @@ class GenerateProductImages extends Command
         imagerectangle($img, 90, 220, 710, 580, $muted);
 
         // Centered product/variant typography using GD built-in crisp font 5 (scaled)
-        $this->drawCenteredText($img, 5, 310, $subtitle ?: 'CATALOGFLOW', $accent);
+        $this->drawCenteredText($img, 5, 310, $subtitle ?: 'Sannafly', $accent);
         $this->drawCenteredText($img, 5, 390, $title ?: 'PRODUCT', $white);
         $this->drawCenteredText($img, 4, 470, "SKU: {$sku}", $muted);
 

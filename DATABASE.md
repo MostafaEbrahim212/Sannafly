@@ -1,4 +1,4 @@
-# CatalogFlow — Security Architecture & Checklist
+# Sannafly — Security Architecture & Checklist
 
 ## Core Security Controls
 1. **Authentication & Session Security:**

@@ -13,10 +13,10 @@ use Illuminate\Support\Facades\Notification;
 
 beforeEach(function () {
     $this->seed([RbacSeeder::class, SettingsSeeder::class]);
-    $this->admin = User::query()->where('email', 'admin@catalogflow.test')->firstOrFail();
+    $this->admin = User::query()->where('email', 'admin@Sannafly.test')->firstOrFail();
     $this->customer = Customer::query()->create([
         'name' => 'Test Customer',
-        'email' => 'buyer@catalogflow.test',
+        'email' => 'buyer@Sannafly.test',
         'phone' => '01000000001',
         'password' => 'password123',
         'status' => 'active',
@@ -70,7 +70,7 @@ it('applies valid coupons and calculates shipping zone rates on checkout', funct
     $this->actingAs($this->customer, 'customer')
         ->post('/checkout', [
             'customer_name' => 'Test Customer',
-            'customer_email' => 'buyer@catalogflow.test',
+            'customer_email' => 'buyer@Sannafly.test',
             'customer_phone' => '01000000001',
             'shipping_address' => ['city' => 'Cairo', 'street' => '10 Tahrir St'],
             'payment_method_id' => $pm->id,

@@ -151,7 +151,7 @@ class SettingsSeeder extends Seeder
                 'sort_order' => 2,
                 'config' => [
                     'bank_name' => 'CIB Egypt',
-                    'account_name' => 'CatalogFlow Trading LLC',
+                    'account_name' => 'Sannafly Trading LLC',
                     'account_number' => '100045892341',
                     'iban' => 'EG380010000100000100045892341',
                 ],

@@ -1,7 +1,7 @@
-# CatalogFlow — System Architecture
+# Sannafly — System Architecture
 
 ## Overview
-CatalogFlow is a modular, monolith-first Laravel + React + TypeScript + Inertia.js platform designed to operate seamlessly in **Catalog Mode** (product browsing, galleries, multi-pricing, variations, inquiries, WhatsApp) and optionally in **E-Commerce Mode** (cart, checkout, orders, customer accounts, payment methods).
+Sannafly is a modular, monolith-first Laravel + React + TypeScript + Inertia.js platform designed to operate seamlessly in **Catalog Mode** (product browsing, galleries, multi-pricing, variations, inquiries, WhatsApp) and optionally in **E-Commerce Mode** (cart, checkout, orders, customer accounts, payment methods).
 
 ## Architectural Principles
 1. **Modular Monolith:** Clean separation into domain services (`App\Services\*`), Policies (`App\Policies\*`), Form Requests (`App\Http\Requests\*`), and Inertia React pages (`resources/js/Pages/*`).

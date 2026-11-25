@@ -88,7 +88,7 @@ class ImportExportController extends Controller
             'Full product description in English.',
             'وصف كامل للمنتج باللغة العربية.',
             'audio,wireless,headphones',
-            'Studio Wireless Headphones | CatalogFlow',
+            'Studio Wireless Headphones | Sannafly',
             'Buy Studio Wireless Headphones with fast delivery.',
             'CF-SAMPLE-01-BLK:Black / Std:249:25; CF-SAMPLE-01-SLV:Silver / Pro:269:15',
         ];
@@ -99,7 +99,7 @@ class ImportExportController extends Controller
 
             return response()->streamDownload(function () use ($binary) {
                 echo $binary;
-            }, 'catalogflow-full-template.xlsx', [
+            }, 'Sannafly-full-template.xlsx', [
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             ]);
         }
@@ -110,7 +110,7 @@ class ImportExportController extends Controller
             fputcsv($handle, $headers);
             fputcsv($handle, $sample);
             fclose($handle);
-        }, 'catalogflow-full-template.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+        }, 'Sannafly-full-template.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function preview(Request $request): JsonResponse

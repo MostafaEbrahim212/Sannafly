@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
 
 class SettingsService
 {
-    private const CACHE_KEY = 'catalogflow.settings.all';
+    private const CACHE_KEY = 'Sannafly.settings.all';
 
     public function get(string $key, mixed $default = null): mixed
     {

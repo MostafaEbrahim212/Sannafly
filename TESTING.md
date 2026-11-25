@@ -1,4 +1,4 @@
-# CatalogFlow — Database Architecture
+# Sannafly — Database Architecture
 
 ## Core Entity Groups
 1. **Users & RBAC:** `users`, `roles`, `permissions`, `role_permission`, `user_role`, `user_permission`, `audit_logs`

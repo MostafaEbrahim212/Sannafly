@@ -1,10 +1,10 @@
-# CatalogFlow — Development Plan
+# Sannafly — Development Plan
 
-> **Temporary Project Name:** `CatalogFlow` (`C:\laragon\www\catalogflow`)  
+> **Temporary Project Name:** `Sannafly` (`C:\laragon\www\Sannafly`)  
 > **Stack:** Laravel 13 + PHP 8.4 + React 19 + TypeScript + Inertia.js + Tailwind CSS + Vite + Pest + Playwright
 
 ## Phase 1 — Foundation
-- [x] Project creation (`catalogflow`)
+- [x] Project creation (`Sannafly`)
 - [ ] Install Inertia.js, React, TypeScript, Tailwind CSS, Pest, Intervention Image (or GD/Imagick service)
 - [ ] Configure database (SQLite for isolated tests, MySQL 8+ / SQLite for local dev)
 - [ ] Configure Localization (`en` / `ar`) and RTL/LTR directionality

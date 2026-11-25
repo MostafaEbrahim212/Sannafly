@@ -113,7 +113,7 @@ class RbacSeeder extends Seeder
         }
 
         $admin = User::query()->firstOrCreate(
-            ['email' => 'admin@catalogflow.test'],
+            ['email' => 'admin@Sannafly.test'],
             [
                 'name' => 'Super Administrator',
                 'phone' => '+10000000000',

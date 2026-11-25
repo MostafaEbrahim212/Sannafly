@@ -38,7 +38,7 @@ export default function Home({ featuredProducts, latestProducts, categories, bra
     ];
 
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const siteName = localized(settings.site_name || 'CatalogFlow', settings.site_name_ar);
+    const siteName = localized(settings.site_name || 'Sannafly', settings.site_name_ar);
     const homeSchemas = [
         {
             '@context': 'https://schema.org',

@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">⚡ CatalogFlow</h1>
+  <h1 align="center">⚡ Sannafly</h1>
   <p align="center">
     منصة كتالوج منتجات وتجارة إلكترونية متكاملة مبنية بـ Laravel 13 + React 19 + TypeScript + Inertia.js
   </p>
@@ -19,7 +19,7 @@
 
 ## 📋 نظرة عامة
 
-**CatalogFlow** هو نظام إدارة كتالوج منتجات احترافي ومتكامل، مصمم للعمل في وضعين:
+**Sannafly** هو نظام إدارة كتالوج منتجات احترافي ومتكامل، مصمم للعمل في وضعين:
 
 | الوضع | الوصف |
 |---|---|
@@ -70,8 +70,8 @@
 ### 1. استنساخ المشروع
 
 ```bash
-git clone https://github.com/your-username/catalogflow.git
-cd catalogflow
+git clone https://github.com/your-username/Sannafly.git
+cd Sannafly
 ```
 
 ### 2. إعداد تلقائي (موصى به)
@@ -120,7 +120,7 @@ npm run dev
 ## ⚙️ إعدادات البيئة `.env`
 
 ```env
-APP_NAME=CatalogFlow
+APP_NAME=Sannafly
 APP_URL=http://localhost:8000
 APP_LOCALE=ar          # en | ar
 
@@ -129,14 +129,14 @@ DB_CONNECTION=sqlite
 # DB_CONNECTION=mysql
 # DB_HOST=127.0.0.1
 # DB_PORT=3306
-# DB_DATABASE=catalogflow
+# DB_DATABASE=Sannafly
 # DB_USERNAME=root
 # DB_PASSWORD=
 
 # البريد الإلكتروني
 MAIL_MAILER=smtp
 MAIL_HOST=smtp.mailtrap.io
-MAIL_FROM_ADDRESS=hello@catalogflow.com
+MAIL_FROM_ADDRESS=hello@Sannafly.com
 ```
 
 ---
@@ -144,7 +144,7 @@ MAIL_FROM_ADDRESS=hello@catalogflow.com
 ## 📁 بنية المشروع
 
 ```
-catalogflow/
+Sannafly/
 ├── app/
 │   ├── Console/Commands/          # أوامر Artisan المخصصة
 │   │   ├── GenerateProductImages.php

@@ -44,7 +44,7 @@ export default function CatalogPrint({ products, template: initialTemplate }: { 
             <div className="max-w-5xl mx-auto bg-white rounded-2xl print:rounded-none border border-slate-200 print:border-none p-8 sm:p-10 shadow-sm print:shadow-none">
                 <div className="mb-8 flex items-center justify-between border-b-2 border-slate-900 pb-4">
                     <div>
-                        <h1 className="text-2xl font-extrabold">{localized(settings.site_name, settings.site_name_ar) || 'CatalogFlow'}</h1>
+                        <h1 className="text-2xl font-extrabold">{localized(settings.site_name, settings.site_name_ar) || 'Sannafly'}</h1>
                         <p className="text-xs font-semibold uppercase tracking-wider text-teal-700 mt-0.5">{t(`tpl_${template}`)}</p>
                     </div>
                     <div className="text-end text-xs text-slate-500">

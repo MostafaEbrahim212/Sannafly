@@ -26,7 +26,7 @@ export default function ProductPrint({ product }: { product: any }) {
             <div className="max-w-3xl mx-auto bg-white rounded-2xl print:rounded-none border print:border-none p-8 shadow-sm print:shadow-none">
                 <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-6">
                     <div>
-                        <div className="text-xs font-bold uppercase text-teal-700">{localized(settings.site_name, settings.site_name_ar) || 'CatalogFlow'}</div>
+                        <div className="text-xs font-bold uppercase text-teal-700">{localized(settings.site_name, settings.site_name_ar) || 'Sannafly'}</div>
                         <h1 className="text-2xl font-extrabold mt-1">{localized(product.name, product.name_ar)}</h1>
                         <div className="text-xs font-mono text-slate-500 mt-1">{t('sku')}: {product.sku}</div>
                     </div>

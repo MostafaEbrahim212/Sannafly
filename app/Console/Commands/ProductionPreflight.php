@@ -11,11 +11,11 @@ class ProductionPreflight extends Command
 {
     protected $signature = 'catalog:preflight';
 
-    protected $description = 'Audit CatalogFlow configuration, storage, database, and payment gateways before production launch';
+    protected $description = 'Audit Sannafly configuration, storage, database, and payment gateways before production launch';
 
     public function handle(): int
     {
-        $this->info('CatalogFlow Production Preflight Check');
+        $this->info('Sannafly Production Preflight Check');
         $this->line('--------------------------------------');
 
         $warnings = 0;

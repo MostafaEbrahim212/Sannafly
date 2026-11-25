@@ -1,7 +1,7 @@
-# CatalogFlow — Architectural Decisions Record
+# Sannafly — Architectural Decisions Record
 
 ## ADR-001: Temporary Project Name
-- **Decision:** Use `CatalogFlow` (`catalogflow`) as the temporary project name.
+- **Decision:** Use `Sannafly` (`Sannafly`) as the temporary project name.
 - **Reason:** Clean, descriptive name for a product catalog & management platform; easily rebranded via `APP_NAME` and Storefront Settings.
 
 ## ADR-002: Stack Selection

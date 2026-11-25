@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
     $this->seed([RbacSeeder::class, SettingsSeeder::class]);
-    $this->admin = User::query()->where('email', 'admin@catalogflow.test')->firstOrFail();
+    $this->admin = User::query()->where('email', 'admin@Sannafly.test')->firstOrFail();
 });
 
 it('seeds myfatoorah and fawry with sandbox enabled and never exposes secrets to frontend', function () {
