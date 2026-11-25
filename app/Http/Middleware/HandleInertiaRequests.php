@@ -2,9 +2,12 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Order;
+use App\Models\Product;
 use App\Services\SettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -52,6 +55,28 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
             ],
+            'adminAlerts' => fn () => $admin ? $this->buildAdminAlerts() : null,
+        ];
+    }
+
+    private function buildAdminAlerts(): array
+    {
+        if (! Schema::hasTable('orders') || ! Schema::hasTable('products')) {
+            return ['total' => 0, 'pending_orders' => 0, 'review_orders' => 0, 'low_stock' => 0];
+        }
+
+        $pendingOrders = Order::query()->where('status', 'pending')->count();
+        $reviewOrders = Order::query()->whereIn('payment_status', ['amount_mismatch', 'needs_review', 'refund_pending'])->count();
+        $lowStock = Product::query()
+            ->where('track_inventory', true)
+            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
+            ->count();
+
+        return [
+            'total' => $pendingOrders + $reviewOrders + $lowStock,
+            'pending_orders' => $pendingOrders,
+            'review_orders' => $reviewOrders,
+            'low_stock' => $lowStock,
         ];
     }
 }

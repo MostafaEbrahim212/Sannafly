@@ -17,6 +17,8 @@ export default function ShippingZonesIndex({ zones }: { zones: any[] }) {
         name_ar: '',
         cities_text: '',
         rate: '30',
+        base_weight_kg: '1',
+        per_kg_rate: '0',
         free_shipping_threshold: '',
         estimated_days: '2-3 days',
         is_default: false,
@@ -121,6 +123,8 @@ export default function ShippingZonesIndex({ zones }: { zones: any[] }) {
             name_ar: zone.name_ar || '',
             cities_text: Array.isArray(zone.cities) ? zone.cities.join(', ') : '',
             rate: String(zone.rate ?? '0'),
+            base_weight_kg: String(zone.base_weight_kg ?? '1'),
+            per_kg_rate: String(zone.per_kg_rate ?? '0'),
             free_shipping_threshold: zone.free_shipping_threshold !== null && zone.free_shipping_threshold !== undefined ? String(zone.free_shipping_threshold) : '',
             estimated_days: zone.estimated_days || '',
             is_default: Boolean(zone.is_default),
@@ -353,6 +357,34 @@ export default function ShippingZonesIndex({ zones }: { zones: any[] }) {
                                     type="text"
                                     value={form.data.estimated_days}
                                     onChange={(e) => form.setData('estimated_days', e.target.value)}
+                                    className="w-full px-3 py-2 rounded-lg border text-sm"
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-semibold mb-1">
+                                    {locale === 'ar' ? 'الوزن الأساسي (كجم)' : 'Base Weight (kg)'}
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={form.data.base_weight_kg}
+                                    onChange={(e) => form.setData('base_weight_kg', e.target.value)}
+                                    className="w-full px-3 py-2 rounded-lg border text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold mb-1">
+                                    {locale === 'ar' ? 'سعر الكيلو الإضافي' : 'Per Extra kg Rate'}
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={form.data.per_kg_rate}
+                                    onChange={(e) => form.setData('per_kg_rate', e.target.value)}
                                     className="w-full px-3 py-2 rounded-lg border text-sm"
                                 />
                             </div>

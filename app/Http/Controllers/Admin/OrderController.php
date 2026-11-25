@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Services\OrderService;
+use App\Support\ErrorLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -45,6 +46,8 @@ class OrderController extends Controller
         $data = $request->validate([
             'status' => ['required', Rule::in(array_keys(OrderService::ALLOWED_TRANSITIONS))],
             'payment_status' => ['nullable', Rule::in(Order::PAYMENT_STATUSES)],
+            'tracking_number' => ['nullable', 'string', 'max:120'],
+            'shipping_carrier' => ['nullable', 'string', 'max:80'],
         ]);
 
         try {
@@ -53,7 +56,20 @@ class OrderController extends Controller
                 $data['status'],
                 $data['payment_status'] ?? null
             );
+
+            if (array_key_exists('tracking_number', $data) || array_key_exists('shipping_carrier', $data)) {
+                $order->update([
+                    'tracking_number' => $data['tracking_number'] ?? $order->tracking_number,
+                    'shipping_carrier' => $data['shipping_carrier'] ?? $order->shipping_carrier,
+                ]);
+            }
         } catch (RuntimeException $e) {
+            ErrorLogger::warning('order.status_transition_failed', $e, extra: [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'target_status' => $data['status'],
+            ]);
+
             return back()->with('error', $e->getMessage());
         }
 
@@ -75,6 +91,15 @@ class OrderController extends Controller
         $order->load(['items', 'paymentMethod', 'coupon', 'shippingZone']);
 
         return Inertia::render('Admin/Orders/Invoice', [
+            'order' => $order,
+        ]);
+    }
+
+    public function shippingLabel(Order $order): Response
+    {
+        $order->load(['items', 'paymentMethod', 'shippingZone']);
+
+        return Inertia::render('Admin/Orders/ShippingLabel', [
             'order' => $order,
         ]);
     }

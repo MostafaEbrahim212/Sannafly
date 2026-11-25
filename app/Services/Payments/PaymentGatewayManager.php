@@ -14,7 +14,7 @@ class PaymentGatewayManager
             'fawry' => app(FawryGateway::class),
             'paymob' => app(PaymobGateway::class),
             'kashier' => app(KashierGateway::class),
-            'cash', 'bank_transfer', 'cod' => null,
+            'cash', 'bank_transfer', 'cod', 'wallet_transfer' => null,
             default => throw new InvalidArgumentException("Unsupported payment driver: {$method->driver}"),
         };
     }

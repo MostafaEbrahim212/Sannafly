@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Support\ErrorLogger;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -51,7 +52,9 @@ class PasswordResetController extends Controller
                     });
                 }
             );
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            ErrorLogger::warning('auth.password_reset_link_failed', $e, $request);
+
             return back()->with('status', __('If that email exists in our system, a reset link has been sent.'));
         }
 

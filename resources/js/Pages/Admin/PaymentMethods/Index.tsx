@@ -34,6 +34,9 @@ export default function PaymentMethodsIndex({ paymentMethods }: { paymentMethods
             iban: pm.gateway_meta?.iban || '',
             pickup_address: pm.gateway_meta?.pickup_address || '',
             pickup_hours: pm.gateway_meta?.pickup_hours || '',
+            instapay_address: pm.gateway_meta?.instapay_address || '',
+            wallet_number: pm.gateway_meta?.wallet_number || '',
+            instructions: pm.gateway_meta?.instructions || '',
         });
     };
 
@@ -413,6 +416,45 @@ export default function PaymentMethodsIndex({ paymentMethods }: { paymentMethods
                                             type="text"
                                             value={formState.pickup_hours}
                                             onChange={(e) => setFormState({ ...formState, pickup_hours: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-xl border text-sm bg-white"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {configuring.driver === 'wallet_transfer' && (
+                                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                                    <div className="text-xs font-bold text-slate-700">
+                                        {locale === 'ar' ? 'بيانات إنستاباي والمحفظة الإلكترونية' : 'InstaPay & Mobile Wallet Details'}
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-semibold mb-1">InstaPay Address (IPA)</label>
+                                            <input
+                                                type="text"
+                                                value={formState.instapay_address}
+                                                onChange={(e) => setFormState({ ...formState, instapay_address: e.target.value })}
+                                                placeholder="store@instapay"
+                                                className="w-full px-3 py-2 rounded-xl border text-sm bg-white font-mono"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold mb-1">{locale === 'ar' ? 'رقم المحفظة (فودافون كاش...)' : 'Wallet Number'}</label>
+                                            <input
+                                                type="text"
+                                                value={formState.wallet_number}
+                                                onChange={(e) => setFormState({ ...formState, wallet_number: e.target.value })}
+                                                placeholder="01000000000"
+                                                className="w-full px-3 py-2 rounded-xl border text-sm bg-white font-mono"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold mb-1">{locale === 'ar' ? 'تعليمات التحويل للعميل' : 'Transfer Instructions'}</label>
+                                        <input
+                                            type="text"
+                                            value={formState.instructions}
+                                            onChange={(e) => setFormState({ ...formState, instructions: e.target.value })}
                                             className="w-full px-3 py-2 rounded-xl border text-sm bg-white"
                                         />
                                     </div>

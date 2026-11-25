@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\BrandController;
@@ -53,6 +54,7 @@ Route::post('/checkout', [CartCheckoutController::class, 'checkout'])->middlewar
 Route::get('/payments/return/{driver}', [CartCheckoutController::class, 'paymentReturn'])->name('payments.return');
 Route::post('/payments/callback/{driver}', [CartCheckoutController::class, 'paymentCallback'])->name('payments.callback');
 Route::get('/orders/confirmation/{orderNumber}', [CartCheckoutController::class, 'confirmation'])->name('orders.confirmation');
+Route::post('/orders/{orderNumber}/retry-payment', [CartCheckoutController::class, 'retryPayment'])->middleware('throttle:10,1')->name('orders.retry-payment');
 Route::get('/track-order', [CartCheckoutController::class, 'trackOrder'])->name('orders.track');
 
 // Storefront Customer Authentication
@@ -187,7 +189,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permissio
     Route::get('/orders', [OrderController::class, 'index'])->middleware('permission:orders.view')->name('orders.index');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->middleware('permission:orders.view')->name('orders.show');
     Route::get('/orders/{order}/invoice', [OrderController::class, 'invoice'])->middleware('permission:orders.view')->name('orders.invoice');
+    Route::get('/orders/{order}/label', [OrderController::class, 'shippingLabel'])->middleware('permission:orders.view')->name('orders.label');
     Route::put('/orders/{order}/status', [OrderController::class, 'updateStatus'])->middleware('permission:orders.manage')->name('orders.status');
+
+    Route::get('/analytics', [AnalyticsController::class, 'index'])->middleware('permission:orders.view')->name('analytics.index');
+    Route::get('/analytics/export', [AnalyticsController::class, 'export'])->middleware('permission:orders.view')->name('analytics.export');
     Route::get('/inquiries', [InquiryController::class, 'index'])->middleware('permission:inquiries.manage')->name('inquiries.index');
     Route::put('/inquiries/{inquiry}/status', [InquiryController::class, 'updateStatus'])->middleware('permission:inquiries.manage')->name('inquiries.status');
 

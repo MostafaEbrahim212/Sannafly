@@ -19,6 +19,8 @@ const PIPELINE = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
 
 export default function OrderShow({ order, allowedTransitions }: { order: any; allowedTransitions: Record<string, string[]> }) {
     const { formatPrice, locale, localized, dir } = useTranslation();
+    const [trackingNumber, setTrackingNumber] = React.useState(order.tracking_number || '');
+    const [shippingCarrier, setShippingCarrier] = React.useState(order.shipping_carrier || '');
     const nextStatuses = allowedTransitions[order.status] || [];
     const addr = order.shipping_address || {};
     const stepIdx = PIPELINE.indexOf(order.status);
@@ -26,6 +28,15 @@ export default function OrderShow({ order, allowedTransitions }: { order: any; a
 
     const updateStatus = (status: string, paymentStatus?: string) => {
         router.put(`/admin/orders/${order.id}/status`, { status, payment_status: paymentStatus }, { preserveScroll: true });
+    };
+
+    const saveTracking = (e: React.FormEvent) => {
+        e.preventDefault();
+        router.put(
+            `/admin/orders/${order.id}/status`,
+            { status: order.status, tracking_number: trackingNumber, shipping_carrier: shippingCarrier },
+            { preserveScroll: true }
+        );
     };
 
     return (
@@ -41,6 +52,13 @@ export default function OrderShow({ order, allowedTransitions }: { order: any; a
                     </Link>
 
                     <div className="flex items-center gap-2">
+                        <Link
+                            href={`/admin/orders/${order.id}/label`}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold shadow-xs"
+                        >
+                            <Truck className="w-4 h-4" />
+                            <span>{locale === 'ar' ? 'بوليصة الشحن' : 'Shipping Label'}</span>
+                        </Link>
                         <Link
                             href={`/admin/orders/${order.id}/invoice`}
                             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs"
@@ -188,6 +206,45 @@ export default function OrderShow({ order, allowedTransitions }: { order: any; a
                                 <span>{order.coupon_code} (-{formatPrice(order.discount_total)})</span>
                             </div>
                         )}
+                        {order.receipt_path && (
+                            <div className="pt-2 border-t space-y-2">
+                                <div className="text-[11px] font-bold text-slate-500">{locale === 'ar' ? 'إيصال التحويل المرفق:' : 'Uploaded Receipt:'}</div>
+                                <a href={`/storage/${order.receipt_path}`} target="_blank" rel="noreferrer" className="block">
+                                    <img src={`/storage/${order.receipt_path}`} alt="Payment receipt" className="w-full max-h-36 object-cover rounded-lg border" />
+                                </a>
+                                {order.payment_status !== 'paid' && (
+                                    <button
+                                        type="button"
+                                        onClick={() => updateStatus(order.status === 'pending' ? 'confirmed' : order.status, 'paid')}
+                                        className="w-full py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold"
+                                    >
+                                        {locale === 'ar' ? 'تأكيد الإيصال واعتماد الدفع' : 'Verify Receipt & Mark Paid'}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                        <form onSubmit={saveTracking} className="pt-2 border-t space-y-1.5">
+                            <div className="text-[11px] font-bold text-slate-500">{locale === 'ar' ? 'تتبع الشحنة:' : 'Shipment Tracking:'}</div>
+                            <input
+                                type="text"
+                                placeholder={locale === 'ar' ? 'شركة الشحن (مثل Bosta)' : 'Carrier (e.g. Bosta)'}
+                                value={shippingCarrier}
+                                onChange={(e) => setShippingCarrier(e.target.value)}
+                                className="w-full px-2.5 py-1.5 rounded-lg border text-xs"
+                            />
+                            <div className="flex gap-1.5">
+                                <input
+                                    type="text"
+                                    placeholder={locale === 'ar' ? 'رقم البوليصة / التتبع' : 'Tracking #'}
+                                    value={trackingNumber}
+                                    onChange={(e) => setTrackingNumber(e.target.value)}
+                                    className="flex-1 px-2.5 py-1.5 rounded-lg border text-xs font-mono"
+                                />
+                                <button type="submit" className="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-semibold">
+                                    {locale === 'ar' ? 'حفظ' : 'Save'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
 

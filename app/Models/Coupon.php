@@ -20,6 +20,7 @@ class Coupon extends Model
         'max_discount_amount',
         'usage_limit',
         'usage_limit_per_customer',
+        'first_order_only',
         'used_count',
         'starts_at',
         'expires_at',
@@ -34,6 +35,7 @@ class Coupon extends Model
             'max_discount_amount' => 'decimal:4',
             'usage_limit' => 'integer',
             'usage_limit_per_customer' => 'integer',
+            'first_order_only' => 'boolean',
             'used_count' => 'integer',
             'starts_at' => 'datetime',
             'expires_at' => 'datetime',
@@ -74,6 +76,10 @@ class Coupon extends Model
 
     public function calculateDiscount(string|int|float $subtotal): string
     {
+        if ($this->type === 'free_shipping') {
+            return '0.0000';
+        }
+
         $sub = Money::normalize((string) $subtotal);
         if (Money::comp($sub, '0') <= 0) {
             return '0.0000';

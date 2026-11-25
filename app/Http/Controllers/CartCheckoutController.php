@@ -12,6 +12,7 @@ use App\Models\Product;
 use App\Models\ProductVariation;
 use App\Models\ShippingZone;
 use App\Services\AuditLogger;
+use App\Services\ImageService;
 use App\Services\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
 use App\Services\SettingsService;
@@ -36,6 +37,7 @@ class CartCheckoutController extends Controller
         private readonly OrderService $orderService,
         private readonly PaymentGatewayManager $gatewayManager,
         private readonly AuditLogger $audit,
+        private readonly ImageService $images,
     ) {}
 
     public function cart(Request $request): Response
@@ -112,6 +114,11 @@ class CartCheckoutController extends Controller
                                 'pickup_address' => $cfg['pickup_address'] ?? null,
                                 'pickup_hours' => $cfg['pickup_hours'] ?? null,
                             ],
+                            'wallet_transfer' => [
+                                'instapay_address' => $cfg['instapay_address'] ?? null,
+                                'wallet_number' => $cfg['wallet_number'] ?? null,
+                                'instructions' => $cfg['instructions'] ?? null,
+                            ],
                             default => null,
                         },
                     ];
@@ -120,7 +127,7 @@ class CartCheckoutController extends Controller
             'shippingZones' => ShippingZone::query()
                 ->where('is_active', true)
                 ->orderBy('sort_order')
-                ->get(['id', 'name', 'name_ar', 'cities', 'rate', 'free_shipping_threshold', 'estimated_days', 'is_default']),
+                ->get(['id', 'name', 'name_ar', 'cities', 'rate', 'free_shipping_threshold', 'base_weight_kg', 'per_kg_rate', 'estimated_days', 'is_default']),
             'appliedCoupon' => $appliedCoupon,
             'idempotencyKey' => tap(
                 $request->session()->get('checkout_idempotency_key') ?: Str::uuid()->toString(),
@@ -299,6 +306,7 @@ class CartCheckoutController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
             'save_address' => ['nullable', 'boolean'],
             'idempotency_key' => ['nullable', 'string', 'max:100'],
+            'payment_receipt' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ]);
 
         $cart = array_values($request->session()->get('cart', []));
@@ -328,6 +336,11 @@ class CartCheckoutController extends Controller
             ErrorLogger::warning('checkout.place_order_failed', $e, $request);
 
             return back()->with('error', $e->getMessage());
+        }
+
+        if ($request->hasFile('payment_receipt') && ! $order->receipt_path) {
+            $stored = $this->images->processAndStore($request->file('payment_receipt'), 'receipts');
+            $order->update(['receipt_path' => $stored['path']]);
         }
 
         if ($customer && ! empty($data['save_address'])) {
@@ -576,6 +589,11 @@ class CartCheckoutController extends Controller
                 'pickup_address' => $cfg['pickup_address'] ?? null,
                 'pickup_hours' => $cfg['pickup_hours'] ?? null,
             ],
+            'wallet_transfer' => [
+                'instapay_address' => $cfg['instapay_address'] ?? null,
+                'wallet_number' => $cfg['wallet_number'] ?? null,
+                'instructions' => $cfg['instructions'] ?? null,
+            ],
             default => null,
         };
 
@@ -664,6 +682,9 @@ class CartCheckoutController extends Controller
             'grand_total' => (string) $order->grand_total,
             'currency' => $order->currency,
             'coupon_code' => $order->coupon_code,
+            'tracking_number' => $order->tracking_number,
+            'shipping_carrier' => $order->shipping_carrier,
+            'receipt_url' => $order->receipt_path ? '/storage/'.$order->receipt_path : null,
             'created_at' => $order->created_at?->toIso8601String(),
             'payment_method' => $order->paymentMethod ? [
                 'id' => $order->paymentMethod->id,

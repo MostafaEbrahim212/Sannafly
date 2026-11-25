@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { ExternalLink, MapPin, PackageSearch, ShoppingBag, Tag, Truck, XCircle } from 'lucide-react';
+import { CreditCard, ExternalLink, MapPin, PackageSearch, RefreshCw, ShoppingBag, Tag, Truck, XCircle } from 'lucide-react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
 import SeoHead from '@/Components/SeoHead';
 import { useTranslation } from '@/lib/i18n';
@@ -18,14 +18,29 @@ const STATUS_BADGE: Record<string, { en: string; ar: string; cls: string }> = {
 
 const PIPELINE = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
 
-export default function MyOrders({ orders }: { orders: any }) {
+export default function MyOrders({ orders, paymentMethods = [] }: { orders: any; paymentMethods?: Array<{ id: number; name: string; name_ar?: string; driver: string }> }) {
     const { t, formatPrice, locale, localized } = useTranslation();
+    const [retryingOrder, setRetryingOrder] = useState<string | null>(null);
+    const [selectedMethods, setSelectedMethods] = useState<Record<string, number>>({});
 
     const handleCancel = (orderId: number) => {
         if (!confirm(locale === 'ar' ? 'هل أنت متأكد من إلغاء هذا الطلب؟' : 'Are you sure you want to cancel this order?')) {
             return;
         }
         router.post(`/my-orders/${orderId}/cancel`, {}, { preserveScroll: true });
+    };
+
+    const handleRetryPayment = (orderNumber: string, defaultMethodId?: number) => {
+        setRetryingOrder(orderNumber);
+        const paymentMethodId = selectedMethods[orderNumber] ?? defaultMethodId;
+        router.post(
+            `/orders/${orderNumber}/retry-payment`,
+            paymentMethodId ? { payment_method_id: paymentMethodId } : {},
+            {
+                preserveScroll: true,
+                onFinish: () => setRetryingOrder(null),
+            }
+        );
     };
 
     return (
@@ -66,6 +81,12 @@ export default function MyOrders({ orders }: { orders: any }) {
                             const badge = STATUS_BADGE[o.status] || { en: o.status, ar: o.status, cls: 'bg-slate-100 text-slate-700' };
                             const stepIdx = PIPELINE.indexOf(o.status);
                             const addr = o.shipping_address || {};
+                            const isEligibleForPayment =
+                                o.payment_status !== 'paid' &&
+                                (o.status === 'pending' || (o.status === 'cancelled' && o.payment_status === 'failed'));
+                            const activeMethodId = selectedMethods[o.order_number] ?? o.payment_method_id ?? o.payment_method?.id;
+                            const chosenMethod = paymentMethods.find((m) => m.id === activeMethodId) || o.payment_method;
+                            const isChosenOnline = ['myfatoorah', 'fawry'].includes(chosenMethod?.driver);
 
                             return (
                                 <div key={o.id} className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
@@ -79,10 +100,24 @@ export default function MyOrders({ orders }: { orders: any }) {
                                                 </span>
                                                 <span
                                                     className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                                                        o.payment_status === 'paid' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                                                        o.payment_status === 'paid'
+                                                            ? 'bg-emerald-50 text-emerald-700'
+                                                            : o.payment_status === 'failed'
+                                                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                                              : 'bg-slate-100 text-slate-600'
                                                     }`}
                                                 >
-                                                    {o.payment_status === 'paid' ? (locale === 'ar' ? 'مدفوع' : 'Paid') : (locale === 'ar' ? 'غير مدفوع' : o.payment_status)}
+                                                    {o.payment_status === 'paid'
+                                                        ? locale === 'ar'
+                                                            ? 'مدفوع'
+                                                            : 'Paid'
+                                                        : o.payment_status === 'failed'
+                                                          ? locale === 'ar'
+                                                              ? 'فشل الدفع'
+                                                              : 'Payment Failed'
+                                                          : locale === 'ar'
+                                                            ? 'غير مدفوع'
+                                                            : o.payment_status}
                                                 </span>
                                             </div>
                                             <div className="text-xs text-slate-400">
@@ -154,7 +189,55 @@ export default function MyOrders({ orders }: { orders: any }) {
                                                 )}
                                             </div>
 
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {isEligibleForPayment && (
+                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                        {paymentMethods.length > 0 && (
+                                                            <select
+                                                                value={activeMethodId || ''}
+                                                                onChange={(e) =>
+                                                                    setSelectedMethods((prev) => ({
+                                                                        ...prev,
+                                                                        [o.order_number]: Number(e.target.value),
+                                                                    }))
+                                                                }
+                                                                className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                                                                aria-label={locale === 'ar' ? 'طريقة الدفع' : 'Payment Method'}
+                                                            >
+                                                                {paymentMethods.map((pm) => (
+                                                                    <option key={pm.id} value={pm.id}>
+                                                                        {localized(pm.name, pm.name_ar)}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            disabled={retryingOrder === o.order_number}
+                                                            onClick={() => handleRetryPayment(o.order_number, activeMethodId)}
+                                                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white font-bold transition-colors"
+                                                        >
+                                                            {retryingOrder === o.order_number ? (
+                                                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                                            ) : (
+                                                                <CreditCard className="w-3.5 h-3.5" />
+                                                            )}
+                                                            <span>
+                                                                {isChosenOnline
+                                                                    ? o.payment_status === 'failed'
+                                                                        ? locale === 'ar'
+                                                                            ? 'إعادة محاولة الدفع'
+                                                                            : 'Retry Payment'
+                                                                        : locale === 'ar'
+                                                                          ? 'ادفع الآن'
+                                                                          : 'Pay Now'
+                                                                    : locale === 'ar'
+                                                                      ? 'تأكيد طريقة الدفع'
+                                                                      : 'Update Payment Method'}
+                                                            </span>
+                                                        </button>
+                                                    </div>
+                                                )}
                                                 {o.status === 'pending' && (
                                                     <button
                                                         type="button"

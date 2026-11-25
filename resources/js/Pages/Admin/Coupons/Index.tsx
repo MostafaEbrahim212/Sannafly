@@ -11,11 +11,13 @@ export default function CouponsIndex({ coupons }: { coupons: any }) {
     const form = useForm({
         code: '',
         name: '',
-        type: 'percent' as 'percent' | 'fixed',
+        type: 'percent' as 'percent' | 'fixed' | 'free_shipping',
         value: '10',
         min_order_amount: '0',
         max_discount_amount: '',
         usage_limit: '',
+        usage_limit_per_customer: '',
+        first_order_only: false,
         expires_at: '',
         is_active: true,
     });
@@ -138,11 +140,12 @@ export default function CouponsIndex({ coupons }: { coupons: any }) {
                                 <label className="block text-xs font-semibold mb-1">Type</label>
                                 <select
                                     value={form.data.type}
-                                    onChange={(e) => form.setData('type', e.target.value as 'percent' | 'fixed')}
+                                    onChange={(e) => form.setData('type', e.target.value as 'percent' | 'fixed' | 'free_shipping')}
                                     className="w-full px-3 py-2 rounded-lg border text-sm"
                                 >
                                     <option value="percent">Percent (%)</option>
                                     <option value="fixed">Fixed Amount</option>
+                                    <option value="free_shipping">{locale === 'ar' ? 'شحن مجاني' : 'Free Shipping'}</option>
                                 </select>
                             </div>
                         </div>
@@ -190,15 +193,34 @@ export default function CouponsIndex({ coupons }: { coupons: any }) {
                                 />
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-xs font-semibold mb-1">Expires At</label>
-                            <input
-                                type="date"
-                                value={form.data.expires_at}
-                                onChange={(e) => form.setData('expires_at', e.target.value)}
-                                className="w-full px-3 py-2 rounded-lg border text-sm"
-                            />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-semibold mb-1">Per-Customer Limit</label>
+                                <input
+                                    type="number"
+                                    value={form.data.usage_limit_per_customer}
+                                    onChange={(e) => form.setData('usage_limit_per_customer', e.target.value)}
+                                    className="w-full px-3 py-2 rounded-lg border text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold mb-1">Expires At</label>
+                                <input
+                                    type="date"
+                                    value={form.data.expires_at}
+                                    onChange={(e) => form.setData('expires_at', e.target.value)}
+                                    className="w-full px-3 py-2 rounded-lg border text-sm"
+                                />
+                            </div>
                         </div>
+                        <label className="flex items-center gap-2 text-xs font-medium">
+                            <input
+                                type="checkbox"
+                                checked={form.data.first_order_only}
+                                onChange={(e) => form.setData('first_order_only', e.target.checked)}
+                            />
+                            <span>{locale === 'ar' ? 'لأول طلب للعميل فقط' : 'First order only'}</span>
+                        </label>
                         <div className="flex justify-end gap-2 pt-2">
                             <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 rounded-lg border text-sm">
                                 Cancel

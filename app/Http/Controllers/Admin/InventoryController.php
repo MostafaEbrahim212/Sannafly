@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductVariation;
 use App\Models\StockMovement;
 use App\Services\InventoryService;
+use App\Support\ErrorLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -60,6 +61,12 @@ class InventoryController extends Controller
                 $data['reason'] ?? 'Manual adjustment'
             );
         } catch (\RuntimeException $e) {
+            ErrorLogger::warning('inventory.adjustment_failed', $e, $request, [
+                'product_id' => $product->id,
+                'variation_id' => $variation?->id,
+                'quantity_change' => (int) $data['quantity_change'],
+            ]);
+
             return back()->with('error', $e->getMessage());
         }
 

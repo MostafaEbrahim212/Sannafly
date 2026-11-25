@@ -1,6 +1,6 @@
-import React from 'react';
-import { Head, Link } from '@inertiajs/react';
-import { CheckCircle2, CreditCard, MapPin, PackageSearch, Printer, ShoppingBag, Tag, Truck } from 'lucide-react';
+import React, { useState } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
+import { AlertCircle, CheckCircle2, CreditCard, MapPin, PackageSearch, Printer, RefreshCw, ShoppingBag, Tag, Truck } from 'lucide-react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
 import SeoHead from '@/Components/SeoHead';
 import { useTranslation } from '@/lib/i18n';
@@ -13,32 +13,112 @@ const STEPS = [
     { key: 'delivered', en: 'Delivered', ar: 'تم التسليم' },
 ];
 
-export default function OrderConfirmation({ order, paymentMeta = null }: { order: any; paymentMeta?: any }) {
+export default function OrderConfirmation({
+    order,
+    paymentMeta = null,
+    paymentMethods = [],
+}: {
+    order: any;
+    paymentMeta?: any;
+    paymentMethods?: Array<{ id: number; name: string; name_ar?: string; driver: string }>;
+}) {
     const { t, formatPrice, locale, localized } = useTranslation();
+    const [retrying, setRetrying] = useState(false);
+    const [selectedMethodId, setSelectedMethodId] = useState<number>(order.payment_method?.id ?? paymentMethods[0]?.id ?? 0);
     const addr = order.shipping_address || {};
     const stepIdx = STEPS.findIndex((s) => s.key === order.status);
+    const isPaymentFailed = order.payment_status === 'failed';
+    const canRetryOrChangePayment =
+        order.payment_status !== 'paid' &&
+        (order.status === 'pending' || (order.status === 'cancelled' && order.payment_status === 'failed'));
+    const chosenMethod = paymentMethods.find((m) => m.id === selectedMethodId) || order.payment_method;
+    const isChosenOnline = ['myfatoorah', 'fawry'].includes(chosenMethod?.driver);
+
+    const handleRetryPayment = () => {
+        setRetrying(true);
+        router.post(
+            `/orders/${order.order_number}/retry-payment`,
+            selectedMethodId ? { payment_method_id: selectedMethodId } : {},
+            {
+                preserveScroll: true,
+                onFinish: () => setRetrying(false),
+            }
+        );
+    };
 
     return (
         <StorefrontLayout>
             <SeoHead title={`${t('order_number')} ${order.order_number}`} noIndex />
 
             <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-6">
-                {/* Celebratory Header */}
+                {/* Celebratory / Payment Alert Header */}
                 <div className="bg-white rounded-3xl border border-slate-200/80 p-8 text-center shadow-xs space-y-4">
-                    <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
-                        <CheckCircle2 className="w-9 h-9" />
+                    <div
+                        className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto ${
+                            isPaymentFailed ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
+                        }`}
+                    >
+                        {isPaymentFailed ? <AlertCircle className="w-9 h-9" /> : <CheckCircle2 className="w-9 h-9" />}
                     </div>
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-                            {t('thank_you')}, {order.customer_name}!
+                            {isPaymentFailed
+                                ? locale === 'ar'
+                                    ? 'لم يكتمل الدفع'
+                                    : 'Payment Was Not Completed'
+                                : `${t('thank_you')}, ${order.customer_name}!`}
                         </h1>
                         <p className="text-sm text-slate-500 mt-1.5">
-                            {t('order_received_msg')}{' '}
+                            {isPaymentFailed
+                                ? locale === 'ar'
+                                    ? 'يمكنك إعادة محاولة الدفع للطلب رقم '
+                                    : 'You can retry payment for order '
+                                : `${t('order_received_msg')} `}
                             <span className="font-mono font-extrabold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-lg">
                                 {order.order_number}
                             </span>
                         </p>
                     </div>
+
+                    {canRetryOrChangePayment && (
+                        <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
+                            {paymentMethods.length > 0 && (
+                                <select
+                                    value={selectedMethodId || ''}
+                                    onChange={(e) => setSelectedMethodId(Number(e.target.value))}
+                                    className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                                    aria-label={locale === 'ar' ? 'طريقة الدفع' : 'Payment Method'}
+                                >
+                                    {paymentMethods.map((pm) => (
+                                        <option key={pm.id} value={pm.id}>
+                                            {localized(pm.name, pm.name_ar)}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+                            <button
+                                type="button"
+                                disabled={retrying}
+                                onClick={handleRetryPayment}
+                                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white text-sm font-bold shadow-xs transition-colors"
+                            >
+                                {retrying ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                                <span>
+                                    {isChosenOnline
+                                        ? isPaymentFailed
+                                            ? locale === 'ar'
+                                                ? 'إعادة محاولة الدفع الآن'
+                                                : 'Retry Payment Now'
+                                            : locale === 'ar'
+                                              ? 'ادفع الآن'
+                                              : 'Pay Now'
+                                        : locale === 'ar'
+                                          ? 'تأكيد تغيير طريقة الدفع'
+                                          : 'Switch Payment Method'}
+                                </span>
+                            </button>
+                        </div>
+                    )}
 
                     {/* Progress Stepper */}
                     {stepIdx >= 0 ? (

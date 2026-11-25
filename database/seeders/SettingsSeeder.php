@@ -64,6 +64,7 @@ class SettingsSeeder extends Seeder
             ['products', 'image_max_width', 1600, 'integer', false],
             ['products', 'image_thumb_width', 400, 'integer', false],
             ['products', 'image_quality', 85, 'integer', false],
+            ['products', 'reviews_verified_only', false, 'boolean', true],
 
             // Orders & Expiry
             ['orders', 'unpaid_online_ttl_minutes', 60, 'integer', false],
@@ -223,6 +224,22 @@ class SettingsSeeder extends Seeder
                 'is_visible' => true,
                 'sort_order' => 7,
                 'config' => ['sandbox' => true, 'merchant_id' => '', 'api_key' => ''],
+            ],
+            [
+                'code' => 'wallet_transfer',
+                'name' => 'InstaPay / Vodafone Cash',
+                'name_ar' => 'إنستاباي / فودافون كاش',
+                'driver' => 'wallet_transfer',
+                'description' => 'Transfer via InstaPay or mobile wallet and upload your receipt.',
+                'description_ar' => 'حوّل عبر إنستاباي أو المحفظة الإلكترونية وارفع صورة الإيصال.',
+                'is_active' => true,
+                'is_visible' => true,
+                'sort_order' => 8,
+                'config' => [
+                    'instapay_address' => 'sannafly@instapay',
+                    'wallet_number' => '01000000000',
+                    'instructions' => 'Transfer the order total and upload a screenshot of the receipt.',
+                ],
             ],
         ];
 

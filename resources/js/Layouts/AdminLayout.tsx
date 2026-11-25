@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     Activity,
+    BarChart3,
+    Bell,
     Boxes,
     ChevronDown,
     ChevronLeft,
@@ -50,6 +52,11 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
     const { auth, flash, settings } = usePage<PageProps>().props;
     const { t, can, locale, dir } = useTranslation();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [alertsOpen, setAlertsOpen] = useState(false);
+    const adminAlerts = (usePage<PageProps>().props as any).adminAlerts as
+        | { total: number; pending_orders: number; review_orders: number; low_stock: number }
+        | null
+        | undefined;
     const [collapsed, setCollapsed] = useState<boolean>(() => {
         if (typeof window === 'undefined') return false;
         return localStorage.getItem('cf_sidebar_collapsed') === '1';
@@ -103,6 +110,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                 ...(settings.module_ecommerce
                     ? [
                           { label: t('orders'), href: '/admin/orders', icon: ShoppingBag, perm: 'orders.view' },
+                          { label: locale === 'ar' ? 'تحليلات المبيعات' : 'Analytics', href: '/admin/analytics', icon: BarChart3, perm: 'orders.view' },
                           { label: locale === 'ar' ? 'العملاء' : 'Customers', href: '/admin/customers', icon: Users, perm: 'orders.view' },
                           { label: locale === 'ar' ? 'الكوبونات' : 'Coupons', href: '/admin/coupons', icon: Percent, perm: 'orders.manage' },
                           { label: locale === 'ar' ? 'مناطق الشحن' : 'Shipping Zones', href: '/admin/shipping-zones', icon: Truck, perm: 'settings.manage' },
@@ -301,6 +309,42 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                     </div>
 
                     <div className="flex items-center gap-2.5">
+                        {adminAlerts && (
+                            <div className="relative">
+                                <button
+                                    type="button"
+                                    onClick={() => setAlertsOpen((v) => !v)}
+                                    aria-label="Notifications"
+                                    className="relative p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 transition-colors"
+                                >
+                                    <Bell className="w-4 h-4 text-slate-600" />
+                                    {adminAlerts.total > 0 && (
+                                        <span className="absolute -top-1 -end-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">
+                                            {adminAlerts.total > 99 ? '99+' : adminAlerts.total}
+                                        </span>
+                                    )}
+                                </button>
+                                {alertsOpen && (
+                                    <div className="absolute end-0 mt-2 w-72 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 shadow-lg p-3 space-y-2 z-50 text-xs">
+                                        <div className="font-bold text-slate-800 dark:text-slate-100 px-1">
+                                            {locale === 'ar' ? 'التنبيهات' : 'Alerts'}
+                                        </div>
+                                        <Link href="/admin/orders?status=pending" onClick={() => setAlertsOpen(false)} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50">
+                                            <span>{locale === 'ar' ? 'طلبات قيد الانتظار' : 'Pending Orders'}</span>
+                                            <span className="font-bold text-amber-700">{adminAlerts.pending_orders}</span>
+                                        </Link>
+                                        <Link href="/admin/orders" onClick={() => setAlertsOpen(false)} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50">
+                                            <span>{locale === 'ar' ? 'طلبات تحتاج مراجعة الدفع' : 'Payment Review Needed'}</span>
+                                            <span className="font-bold text-rose-700">{adminAlerts.review_orders}</span>
+                                        </Link>
+                                        <Link href="/admin/inventory" onClick={() => setAlertsOpen(false)} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50">
+                                            <span>{locale === 'ar' ? 'منتجات مخزونها منخفض' : 'Low Stock Products'}</span>
+                                            <span className="font-bold text-orange-700">{adminAlerts.low_stock}</span>
+                                        </Link>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         {can('products.create') && (
                             <Link
                                 href="/admin/products/create"

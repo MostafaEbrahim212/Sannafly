@@ -46,6 +46,10 @@ class Order extends Model
         'currency',
         'notes',
         'idempotency_key',
+        'receipt_path',
+        'tracking_number',
+        'shipping_carrier',
+        'total_weight',
     ];
 
     protected $hidden = [

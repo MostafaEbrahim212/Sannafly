@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\PaymentMethod;
 use App\Services\OrderService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -111,7 +112,12 @@ class CustomerAuthController extends Controller
         $customer = Auth::guard('customer')->user();
 
         return Inertia::render('Storefront/MyOrders', [
-            'orders' => $customer->orders()->with(['items', 'paymentMethod:id,name,name_ar'])->latest()->paginate(10),
+            'orders' => $customer->orders()->with(['items', 'paymentMethod:id,name,name_ar,driver'])->latest()->paginate(10),
+            'paymentMethods' => PaymentMethod::query()
+                ->where('is_active', true)
+                ->where('is_visible', true)
+                ->orderBy('sort_order')
+                ->get(['id', 'name', 'name_ar', 'driver']),
         ]);
     }
 

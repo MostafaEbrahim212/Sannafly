@@ -63,6 +63,8 @@ class ShippingZoneController extends Controller
             'cities_text' => ['nullable', 'string', 'max:2000'],
             'rate' => ['required', 'numeric', 'min:0'],
             'free_shipping_threshold' => ['nullable', 'numeric', 'min:0'],
+            'base_weight_kg' => ['nullable', 'numeric', 'min:0'],
+            'per_kg_rate' => ['nullable', 'numeric', 'min:0'],
             'estimated_days' => ['nullable', 'string', 'max:60'],
             'is_default' => ['boolean'],
             'is_active' => ['boolean'],

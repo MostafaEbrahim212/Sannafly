@@ -83,6 +83,7 @@ class OrderService
                 usort($cartItems, fn ($a, $b) => [$a['product_id'], $a['variation_id'] ?? 0] <=> [$b['product_id'], $b['variation_id'] ?? 0]);
 
                 $subtotal = '0.0000';
+                $totalWeight = '0.000';
                 $preparedItems = [];
 
                 foreach ($cartItems as $item) {
@@ -111,6 +112,9 @@ class OrderService
                     $unitPrice = $this->resolveUnitPrice($product, $variation, $qty);
                     $lineTotal = bcmul($unitPrice, (string) $qty, 4);
                     $subtotal = bcadd($subtotal, $lineTotal, 4);
+
+                    $unitWeight = Money::normalize((string) ($variation?->weight ?? $product->weight ?? '0'), 3);
+                    $totalWeight = Money::add($totalWeight, Money::mul($unitWeight, (string) $qty, 3), 3);
 
                     $preparedItems[] = [
                         'product' => $product,
@@ -151,6 +155,22 @@ class OrderService
                             throw new RuntimeException('You have reached the usage limit for this coupon.');
                         }
                     }
+                    if ($coupon->first_order_only) {
+                        $hasPriorOrder = Order::query()
+                            ->where('status', '!=', 'cancelled')
+                            ->where(function ($q) use ($customerId, $normalizedPhone) {
+                                if ($customerId) {
+                                    $q->where('customer_id', $customerId);
+                                } elseif ($normalizedPhone) {
+                                    $q->where('customer_phone', 'like', "%{$normalizedPhone}");
+                                }
+                            })
+                            ->exists();
+
+                        if ($hasPriorOrder) {
+                            throw new RuntimeException('This coupon is valid for first orders only.');
+                        }
+                    }
                     $discountTotal = $coupon->calculateDiscount($subtotal);
                     $coupon->increment('used_count');
                 }
@@ -158,9 +178,10 @@ class OrderService
                 $netSubtotal = Money::max('0.0000', Money::sub($subtotal, $discountTotal));
                 $city = is_array($customerData['shipping_address'] ?? null) ? ($customerData['shipping_address']['city'] ?? null) : null;
                 $isPickup = $paymentMethod->driver === 'cash';
-                $shippingCalc = $isPickup
+                $isFreeShippingCoupon = $coupon?->type === 'free_shipping';
+                $shippingCalc = ($isPickup || $isFreeShippingCoupon)
                     ? ['zone' => null, 'rate' => '0.0000', 'free_shipping' => true]
-                    : $this->shipping->calculateForCity($city, $netSubtotal);
+                    : $this->shipping->calculateForCity($city, $netSubtotal, $totalWeight);
                 $shippingTotal = Money::normalize($shippingCalc['rate']);
                 $grandTotal = Money::add($netSubtotal, $shippingTotal);
 
@@ -189,6 +210,7 @@ class OrderService
                     'currency' => $currency,
                     'notes' => $customerData['notes'] ?? null,
                     'idempotency_key' => $scopedKey,
+                    'total_weight' => $totalWeight,
                 ]);
 
                 if ($coupon) {

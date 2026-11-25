@@ -17,7 +17,7 @@ class CouponFactory extends Factory
             'name' => fake()->words(2, true),
             'type' => 'fixed',
             'value' => '15.0000',
-            'min_order_amount' => null,
+            'min_order_amount' => '0.0000',
             'max_discount_amount' => null,
             'usage_limit' => null,
             'usage_limit_per_customer' => null,

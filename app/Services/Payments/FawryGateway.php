@@ -27,42 +27,53 @@ class FawryGateway implements PaymentGatewayInterface
         $baseUrl = $sandbox ? 'https://atfawry.fawrystaging.com' : 'https://www.atfawry.com';
 
         $merchantRefNum = $order->order_number;
-        $customerProfileId = (string) ($order->user_id ?? 'guest');
+        $customerProfileId = (string) ($order->customer_id ?? $order->user_id ?? 'guest');
         $paymentMethod = 'PAYATFAWRY';
         $amountFormatted = Money::toGateway((string) $order->grand_total);
 
         $signature = hash('sha256', $merchantCode.$merchantRefNum.$customerProfileId.$paymentMethod.$amountFormatted.$securityKey);
 
-        $response = Http::acceptJson()
-            ->timeout(15)
-            ->post("{$baseUrl}/ECommerceWeb/Fawry/payments/charge", [
-                'merchantCode' => $merchantCode,
-                'merchantRefNum' => $merchantRefNum,
-                'customerProfileId' => $customerProfileId,
-                'customerName' => $order->customer_name,
-                'customerMobile' => $order->customer_phone,
-                'customerEmail' => $order->customer_email ?: 'customer@example.com',
-                'paymentMethod' => $paymentMethod,
-                'amount' => $amountFormatted,
-                'currencyCode' => $order->currency ?: 'EGP',
-                'description' => "Order {$order->order_number}",
-                'chargeItems' => [
-                    [
-                        'itemId' => $order->order_number,
-                        'description' => "Order {$order->order_number}",
-                        'price' => $amountFormatted,
-                        'quantity' => 1,
+        try {
+            $response = Http::acceptJson()
+                ->timeout(15)
+                ->post("{$baseUrl}/ECommerceWeb/Fawry/payments/charge", [
+                    'merchantCode' => $merchantCode,
+                    'merchantRefNum' => $merchantRefNum,
+                    'customerProfileId' => $customerProfileId,
+                    'customerName' => $order->customer_name,
+                    'customerMobile' => $order->customer_phone,
+                    'customerEmail' => $order->customer_email ?: 'customer@example.com',
+                    'paymentMethod' => $paymentMethod,
+                    'amount' => $amountFormatted,
+                    'currencyCode' => $order->currency ?: 'EGP',
+                    'description' => "Order {$order->order_number}",
+                    'chargeItems' => [
+                        [
+                            'itemId' => $order->order_number,
+                            'description' => "Order {$order->order_number}",
+                            'price' => $amountFormatted,
+                            'quantity' => 1,
+                        ],
                     ],
-                ],
-                'signature' => $signature,
-            ]);
+                    'signature' => $signature,
+                ]);
+        } catch (\Throwable $e) {
+            return [
+                'success' => false,
+                'error' => __('Could not connect to Fawry payment gateway.'),
+                'raw' => ['exception' => $e->getMessage()],
+            ];
+        }
 
         $json = $response->json();
         if (! $response->successful() || (isset($json['statusCode']) && (int) $json['statusCode'] !== 200)) {
+            $raw = is_array($json) ? $json : ['body' => mb_substr($response->body(), 0, 500)];
+            $raw['http_status'] = $response->status();
+
             return [
                 'success' => false,
-                'error' => $json['statusDescription'] ?? 'Fawry payment initiation failed.',
-                'raw' => is_array($json) ? $json : [],
+                'error' => $json['statusDescription'] ?? __('Fawry payment initiation failed.'),
+                'raw' => $raw,
             ];
         }
 

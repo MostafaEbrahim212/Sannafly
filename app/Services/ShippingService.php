@@ -32,14 +32,14 @@ class ShippingService
     /**
      * @return array{zone: ?ShippingZone, rate: string, free_shipping: bool}
      */
-    public function calculateForCity(?string $city, string|int|float $subtotalAfterDiscount): array
+    public function calculateForCity(?string $city, string|int|float $subtotalAfterDiscount, string|int|float $totalWeightKg = '0'): array
     {
         $zone = $this->resolveZone($city);
         if (! $zone) {
             return ['zone' => null, 'rate' => '0.0000', 'free_shipping' => false];
         }
 
-        $rate = $zone->calculateRate($subtotalAfterDiscount);
+        $rate = $zone->calculateRate($subtotalAfterDiscount, $totalWeightKg);
 
         return [
             'zone' => $zone,

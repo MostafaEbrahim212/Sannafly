@@ -16,6 +16,8 @@ class ShippingZone extends Model
         'cities',
         'rate',
         'free_shipping_threshold',
+        'base_weight_kg',
+        'per_kg_rate',
         'estimated_days',
         'is_default',
         'is_active',
@@ -28,6 +30,8 @@ class ShippingZone extends Model
             'cities' => 'array',
             'rate' => 'decimal:4',
             'free_shipping_threshold' => 'decimal:4',
+            'base_weight_kg' => 'decimal:3',
+            'per_kg_rate' => 'decimal:4',
             'is_default' => 'boolean',
             'is_active' => 'boolean',
             'sort_order' => 'integer',
@@ -62,7 +66,7 @@ class ShippingZone extends Model
         );
     }
 
-    public function calculateRate(string|int|float $subtotalAfterDiscount): string
+    public function calculateRate(string|int|float $subtotalAfterDiscount, string|int|float $totalWeightKg = '0'): string
     {
         $net = Money::normalize((string) $subtotalAfterDiscount);
         if ($this->free_shipping_threshold !== null) {
@@ -72,6 +76,16 @@ class ShippingZone extends Model
             }
         }
 
-        return Money::normalize((string) $this->rate);
+        $rate = Money::normalize((string) $this->rate);
+        $perKg = Money::normalize((string) ($this->per_kg_rate ?? '0'));
+        $weight = Money::normalize((string) $totalWeightKg, 3);
+        $baseWeight = Money::normalize((string) ($this->base_weight_kg ?? '1'), 3);
+
+        if (Money::comp($perKg, '0') > 0 && Money::comp($weight, $baseWeight, 3) > 0) {
+            $extraKg = Money::sub($weight, $baseWeight, 3);
+            $rate = Money::add($rate, Money::mul($extraKg, $perKg));
+        }
+
+        return $rate;
     }
 }

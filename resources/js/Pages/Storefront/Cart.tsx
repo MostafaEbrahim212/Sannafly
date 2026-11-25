@@ -46,6 +46,9 @@ interface CartProps {
             iban?: string | null;
             pickup_address?: string | null;
             pickup_hours?: string | null;
+            instapay_address?: string | null;
+            wallet_number?: string | null;
+            instructions?: string | null;
         } | null;
     }>;
     shippingZones?: ShippingZoneItem[];
@@ -77,6 +80,7 @@ export default function Cart({ items, savedAddresses = [], paymentMethods, shipp
         notes: '',
         save_address: false,
         idempotency_key: idempotencyKey,
+        payment_receipt: null as File | null,
     });
 
     const pickAddress = (addr: any) => {
@@ -139,9 +143,9 @@ export default function Cart({ items, savedAddresses = [], paymentMethods, shipp
             matched = shippingZones.find((z) => z.is_default) || shippingZones[0];
         }
         const threshold = matched.free_shipping_threshold ? Number(matched.free_shipping_threshold) : null;
-        const cost = threshold !== null && netSubtotal >= threshold ? 0 : Number(matched.rate || 0);
+        const cost = appliedCoupon?.type === 'free_shipping' || (threshold !== null && netSubtotal >= threshold) ? 0 : Number(matched.rate || 0);
         return { zone: matched, cost };
-    }, [shippingZones, form.data.shipping_address.city, netSubtotal, isStorePickup]);
+    }, [shippingZones, form.data.shipping_address.city, netSubtotal, isStorePickup, appliedCoupon]);
 
     const grandTotal = netSubtotal + shippingInfo.cost;
 
@@ -479,6 +483,28 @@ export default function Cart({ items, savedAddresses = [], paymentMethods, shipp
                                                         <div className="mt-2 p-2.5 rounded-lg bg-white border border-teal-200 text-[11px] text-slate-700 space-y-0.5">
                                                             <div><strong>{locale === 'ar' ? 'عنوان الاستلام:' : 'Pickup:'}</strong> {pm.public_meta.pickup_address}</div>
                                                             {pm.public_meta.pickup_hours && <div><strong>{locale === 'ar' ? 'المواعيد:' : 'Hours:'}</strong> {pm.public_meta.pickup_hours}</div>}
+                                                        </div>
+                                                    )}
+                                                    {selected && pm.driver === 'wallet_transfer' && (
+                                                        <div className="mt-2 p-3 rounded-lg bg-white border border-teal-200 text-[11px] text-slate-700 space-y-2">
+                                                            {pm.public_meta?.instapay_address && (
+                                                                <div><strong>InstaPay:</strong> <span className="font-mono font-bold text-teal-800">{pm.public_meta.instapay_address}</span></div>
+                                                            )}
+                                                            {pm.public_meta?.wallet_number && (
+                                                                <div><strong>{locale === 'ar' ? 'رقم المحفظة:' : 'Wallet #:'}</strong> <span className="font-mono font-bold text-teal-800">{pm.public_meta.wallet_number}</span></div>
+                                                            )}
+                                                            {pm.public_meta?.instructions && <div className="text-slate-500">{pm.public_meta.instructions}</div>}
+                                                            <div className="pt-1">
+                                                                <label className="block font-bold mb-1 text-slate-700">
+                                                                    {locale === 'ar' ? 'رفع صورة إيصال التحويل (اختياري):' : 'Upload Transfer Receipt (optional):'}
+                                                                </label>
+                                                                <input
+                                                                    type="file"
+                                                                    accept="image/jpeg,image/png,image/webp"
+                                                                    onChange={(e) => form.setData('payment_receipt', e.target.files?.[0] ?? null)}
+                                                                    className="block w-full text-[11px] file:me-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:bg-teal-50 file:text-teal-700 file:font-semibold"
+                                                                />
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>

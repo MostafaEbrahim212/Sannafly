@@ -47,6 +47,9 @@ class PaymentMethodController extends Controller
                     'iban' => $cfg['iban'] ?? '',
                     'pickup_address' => $cfg['pickup_address'] ?? '',
                     'pickup_hours' => $cfg['pickup_hours'] ?? '',
+                    'instapay_address' => $cfg['instapay_address'] ?? '',
+                    'wallet_number' => $cfg['wallet_number'] ?? '',
+                    'instructions' => $cfg['instructions'] ?? '',
                 ],
             ];
         });
@@ -81,6 +84,9 @@ class PaymentMethodController extends Controller
             'iban' => ['nullable', 'string', 'max:100'],
             'pickup_address' => ['nullable', 'string', 'max:255'],
             'pickup_hours' => ['nullable', 'string', 'max:150'],
+            'instapay_address' => ['nullable', 'string', 'max:150'],
+            'wallet_number' => ['nullable', 'string', 'max:50'],
+            'instructions' => ['nullable', 'string', 'max:500'],
         ]);
 
         $existingConfig = $paymentMethod->config ?? [];
@@ -141,6 +147,12 @@ class PaymentMethodController extends Controller
             }
         } elseif ($paymentMethod->driver === 'cash') {
             foreach (['pickup_address', 'pickup_hours'] as $field) {
+                if (array_key_exists($field, $data)) {
+                    $newConfig[$field] = trim((string) ($data[$field] ?? ''));
+                }
+            }
+        } elseif ($paymentMethod->driver === 'wallet_transfer') {
+            foreach (['instapay_address', 'wallet_number', 'instructions'] as $field) {
                 if (array_key_exists($field, $data)) {
                     $newConfig[$field] = trim((string) ($data[$field] ?? ''));
                 }
