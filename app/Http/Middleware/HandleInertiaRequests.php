@@ -56,6 +56,8 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
             ],
             'adminAlerts' => fn () => $admin ? $this->buildAdminAlerts() : null,
+            'adminUnreadNotifications' => fn () => $admin && Schema::hasTable('notifications') ? $admin->unreadNotifications()->count() : 0,
+            'customerUnreadNotifications' => fn () => $customer && Schema::hasTable('notifications') ? $customer->unreadNotifications()->count() : 0,
         ];
     }
 

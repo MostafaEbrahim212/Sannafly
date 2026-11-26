@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     Activity,
@@ -41,6 +41,7 @@ import {
 import { useTranslation } from '@/lib/i18n';
 import { useColorMode } from '@/lib/colorMode';
 import { applyThemeSettings } from '@/lib/theme';
+import { useRealtimeFeed, type RealtimeNotificationItem } from '@/lib/useRealtime';
 import BrandLogo from '@/Components/BrandLogo';
 import ThemeToggle from '@/Components/ThemeToggle';
 import type { PageProps } from '@/types';
@@ -55,10 +56,55 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
     const { t, can, locale, dir } = useTranslation();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [alertsOpen, setAlertsOpen] = useState(false);
-    const adminAlerts = (usePage<PageProps>().props as any).adminAlerts as
+    const pageProps = usePage<PageProps>().props as any;
+    const initialAlerts = pageProps.adminAlerts as
         | { total: number; pending_orders: number; review_orders: number; low_stock: number }
         | null
         | undefined;
+    const [liveAlerts, setLiveAlerts] = useState(initialAlerts);
+    const [unreadNotifs, setUnreadNotifs] = useState<number>(Number(pageProps.adminUnreadNotifications ?? 0));
+    const [liveNotifs, setLiveNotifs] = useState<RealtimeNotificationItem[]>([]);
+    const [liveToast, setLiveToast] = useState<RealtimeNotificationItem | null>(null);
+    const seenNotifIds = useRef<Set<string>>(new Set());
+    const initializedFeed = useRef(false);
+    const lastOrderStamp = useRef<string | null>(null);
+
+    const adminAlerts = liveAlerts ?? initialAlerts;
+
+    useRealtimeFeed<{
+        unread_count: number;
+        notifications: RealtimeNotificationItem[];
+        admin_alerts: { total: number; pending_orders: number; review_orders: number; low_stock: number };
+        dashboard_pulse?: { latest_order_updated_at?: string | null };
+    }>('/admin/realtime/feed', Boolean(auth.user), (data) => {
+        setLiveAlerts(data.admin_alerts);
+        setUnreadNotifs(data.unread_count);
+        setLiveNotifs(data.notifications || []);
+
+        const ids = (data.notifications || []).map((n) => n.id);
+        if (!initializedFeed.current) {
+            ids.forEach((id) => seenNotifIds.current.add(id));
+            initializedFeed.current = true;
+            lastOrderStamp.current = data.dashboard_pulse?.latest_order_updated_at ?? null;
+            return;
+        }
+
+        const fresh = (data.notifications || []).find((n) => !n.read_at && !seenNotifIds.current.has(n.id));
+        ids.forEach((id) => seenNotifIds.current.add(id));
+        if (fresh) {
+            setLiveToast(fresh);
+            setTimeout(() => setLiveToast((cur) => (cur?.id === fresh.id ? null : cur)), 6000);
+        }
+
+        const nextStamp = data.dashboard_pulse?.latest_order_updated_at ?? null;
+        if (nextStamp && nextStamp !== lastOrderStamp.current) {
+            lastOrderStamp.current = nextStamp;
+            const path = typeof window !== 'undefined' ? window.location.pathname : '';
+            if (path === '/admin' || path.startsWith('/admin/orders') || path === '/admin/notifications') {
+                router.reload({ preserveState: true, preserveScroll: true } as any);
+            }
+        }
+    });
     const [collapsed, setCollapsed] = useState<boolean>(() => {
         if (typeof window === 'undefined') return false;
         return localStorage.getItem('cf_sidebar_collapsed') === '1';
@@ -125,6 +171,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
             items: [
                 { label: t('users'), href: '/admin/users', icon: Users, perm: 'users.view' },
                 { label: t('roles'), href: '/admin/roles', icon: Shield, perm: 'users.manage_roles' },
+                { label: locale === 'ar' ? 'الإشعارات' : 'Notifications', href: '/admin/notifications', icon: Bell, perm: 'dashboard.access' },
                 { label: t('audit_logs'), href: '/admin/audit-logs', icon: Activity, perm: 'audit_logs.view' },
                 { label: locale === 'ar' ? 'سجلات النظام' : 'System Logs', href: '/admin/system-logs', icon: FileText, perm: 'audit_logs.view' },
                 { label: locale === 'ar' ? 'أدوات الصيانة والباك اب' : 'System Tools', href: '/admin/system-tools', icon: Wrench, perm: 'settings.manage' },
@@ -315,30 +362,52 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                                     aria-label="Notifications"
                                     className="relative p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 transition-colors"
                                 >
-                                    <Bell className="w-4 h-4 text-slate-600" />
-                                    {adminAlerts.total > 0 && (
+                                    <Bell className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                                    {(unreadNotifs > 0 || adminAlerts.total > 0) && (
                                         <span className="absolute -top-1 -end-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">
-                                            {adminAlerts.total > 99 ? '99+' : adminAlerts.total}
+                                            {(unreadNotifs || adminAlerts.total) > 99 ? '99+' : unreadNotifs || adminAlerts.total}
                                         </span>
                                     )}
                                 </button>
                                 {alertsOpen && (
-                                    <div className="absolute end-0 mt-2 w-72 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 shadow-lg p-3 space-y-2 z-50 text-xs">
-                                        <div className="font-bold text-slate-800 dark:text-slate-100 px-1">
-                                            {locale === 'ar' ? 'التنبيهات' : 'Alerts'}
+                                    <div className="absolute end-0 mt-2 w-80 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-3 space-y-2 z-50 text-xs">
+                                        <div className="flex items-center justify-between px-1">
+                                            <span className="font-bold text-slate-800 dark:text-slate-100">
+                                                {locale === 'ar' ? 'التنبيهات والإشعارات' : 'Alerts & Notifications'}
+                                            </span>
+                                            <Link href="/admin/notifications" onClick={() => setAlertsOpen(false)} className="text-teal-700 dark:text-teal-400 font-semibold hover:underline">
+                                                {locale === 'ar' ? 'عرض الكل' : 'View All'}
+                                            </Link>
                                         </div>
-                                        <Link href="/admin/orders?status=pending" onClick={() => setAlertsOpen(false)} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50">
+                                        <Link href="/admin/orders?status=pending" onClick={() => setAlertsOpen(false)} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800">
                                             <span>{locale === 'ar' ? 'طلبات قيد الانتظار' : 'Pending Orders'}</span>
-                                            <span className="font-bold text-amber-700">{adminAlerts.pending_orders}</span>
+                                            <span className="font-bold text-amber-600 dark:text-amber-400">{adminAlerts.pending_orders}</span>
                                         </Link>
-                                        <Link href="/admin/orders" onClick={() => setAlertsOpen(false)} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50">
+                                        <Link href="/admin/orders" onClick={() => setAlertsOpen(false)} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800">
                                             <span>{locale === 'ar' ? 'طلبات تحتاج مراجعة الدفع' : 'Payment Review Needed'}</span>
-                                            <span className="font-bold text-rose-700">{adminAlerts.review_orders}</span>
+                                            <span className="font-bold text-rose-600 dark:text-rose-400">{adminAlerts.review_orders}</span>
                                         </Link>
-                                        <Link href="/admin/inventory" onClick={() => setAlertsOpen(false)} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50">
+                                        <Link href="/admin/inventory" onClick={() => setAlertsOpen(false)} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800">
                                             <span>{locale === 'ar' ? 'منتجات مخزونها منخفض' : 'Low Stock Products'}</span>
-                                            <span className="font-bold text-orange-700">{adminAlerts.low_stock}</span>
+                                            <span className="font-bold text-orange-600 dark:text-orange-400">{adminAlerts.low_stock}</span>
                                         </Link>
+                                        {liveNotifs.length > 0 && (
+                                            <div className="border-t border-slate-100 dark:border-slate-800 pt-2 space-y-1 max-h-56 overflow-y-auto">
+                                                {liveNotifs.slice(0, 4).map((n) => (
+                                                    <Link
+                                                        key={n.id}
+                                                        href={n.data.url || '/admin/notifications'}
+                                                        onClick={() => setAlertsOpen(false)}
+                                                        className={`block p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 ${!n.read_at ? 'bg-teal-50/50 dark:bg-teal-950/30' : ''}`}
+                                                    >
+                                                        <div className="font-semibold truncate">
+                                                            {locale === 'ar' ? n.data.title_ar || n.data.title_en : n.data.title_en}
+                                                        </div>
+                                                        <div className="text-[11px] text-slate-400 mt-0.5">{n.human_time}</div>
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -377,6 +446,25 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                     {children}
                 </main>
             </div>
+
+            {liveToast && (
+                <div className="no-print fixed bottom-5 end-5 z-50 max-w-sm w-full bg-white dark:bg-slate-900 border border-teal-300 dark:border-teal-700 rounded-2xl shadow-xl p-4 flex items-start gap-3 animate-fade-up">
+                    <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 shrink-0">
+                        <Bell className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <Link href={liveToast.data.url || '/admin/notifications'} onClick={() => setLiveToast(null)} className="text-xs font-bold block hover:underline">
+                            {locale === 'ar' ? liveToast.data.title_ar || liveToast.data.title_en : liveToast.data.title_en}
+                        </Link>
+                        <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">
+                            {locale === 'ar' ? liveToast.data.body_ar || liveToast.data.body_en : liveToast.data.body_en}
+                        </p>
+                    </div>
+                    <button type="button" onClick={() => setLiveToast(null)} className="text-slate-400 hover:text-slate-600 p-1">
+                        <X className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

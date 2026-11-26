@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductInquiry;
 use App\Models\ProductPrice;
+use App\Services\RealtimeNotificationService;
 use App\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,10 @@ use Inertia\Response;
 
 class StorefrontController extends Controller
 {
-    public function __construct(private readonly SettingsService $settings) {}
+    public function __construct(
+        private readonly SettingsService $settings,
+        private readonly RealtimeNotificationService $realtime,
+    ) {}
 
     public function home(): Response
     {
@@ -201,7 +205,8 @@ class StorefrontController extends Controller
             'message' => ['required', 'string', 'max:2000'],
         ]);
 
-        ProductInquiry::query()->create($data);
+        $inquiry = ProductInquiry::query()->create($data);
+        $this->realtime->inquiryReceived($inquiry);
 
         return back()->with('success', __('Your inquiry has been submitted. We will contact you shortly.'));
     }

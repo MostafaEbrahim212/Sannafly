@@ -11,7 +11,10 @@ use RuntimeException;
 
 class InventoryService
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly RealtimeNotificationService $realtime,
+    ) {}
 
     public function adjustStock(
         Product $product,
@@ -80,6 +83,11 @@ class InventoryService
                 'change' => $quantityChange,
                 'type' => $type,
             ]);
+
+            $currentStock = $variation ? $after : (int) $lockedProduct->stock_quantity;
+            if ($quantityChange < 0 && $lockedProduct->track_inventory && $currentStock <= (int) $lockedProduct->low_stock_threshold) {
+                $this->realtime->lowStockAlert($lockedProduct, $currentStock);
+            }
 
             return $movement;
         });

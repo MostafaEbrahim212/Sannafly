@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
-import { CheckCircle2, Copy, Globe, Heart, LogOut, Mail, Megaphone, MessageCircle, PackageSearch, Phone, Search, ShoppingBag, Sparkles, Tag, User, X, XCircle } from 'lucide-react';
+import { Bell, CheckCircle2, Copy, Globe, Heart, LogOut, Mail, Megaphone, MessageCircle, PackageSearch, Phone, Search, ShoppingBag, Sparkles, Tag, User, X, XCircle } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
 import { useColorMode } from '@/lib/colorMode';
 import { applyThemeSettings } from '@/lib/theme';
+import { useRealtimeFeed, type RealtimeNotificationItem } from '@/lib/useRealtime';
 import BrandLogo from '@/Components/BrandLogo';
 import ThemeToggle from '@/Components/ThemeToggle';
 import type { PageProps } from '@/types';
@@ -22,6 +23,40 @@ export default function StorefrontLayout({ children }: StorefrontLayoutProps) {
     const [popupOpen, setPopupOpen] = useState(false);
     const [copiedCoupon, setCopiedCoupon] = useState(false);
     const { mode, isDark, setMode, cycleMode } = useColorMode();
+    const pageProps = usePage<PageProps>().props as any;
+    const [unreadCount, setUnreadCount] = useState<number>(Number(pageProps.customerUnreadNotifications ?? 0));
+    const [liveNotifToast, setLiveNotifToast] = useState<RealtimeNotificationItem | null>(null);
+    const seenCustomerNotifs = useRef<Set<string>>(new Set());
+    const customerFeedInit = useRef(false);
+    const lastOrderSig = useRef<string | null>(null);
+
+    useRealtimeFeed<{
+        unread_count: number;
+        notifications: RealtimeNotificationItem[];
+        latest_order_signature: string | null;
+    }>('/account/realtime/feed', Boolean(auth.customer), (data) => {
+        setUnreadCount(data.unread_count);
+        const ids = (data.notifications || []).map((n) => n.id);
+        if (!customerFeedInit.current) {
+            ids.forEach((id) => seenCustomerNotifs.current.add(id));
+            customerFeedInit.current = true;
+            lastOrderSig.current = data.latest_order_signature;
+            return;
+        }
+        const fresh = (data.notifications || []).find((n) => !n.read_at && !seenCustomerNotifs.current.has(n.id));
+        ids.forEach((id) => seenCustomerNotifs.current.add(id));
+        if (fresh) {
+            setLiveNotifToast(fresh);
+            setTimeout(() => setLiveNotifToast((cur) => (cur?.id === fresh.id ? null : cur)), 6000);
+        }
+        if (data.latest_order_signature && data.latest_order_signature !== lastOrderSig.current) {
+            lastOrderSig.current = data.latest_order_signature;
+            const path = typeof window !== 'undefined' ? window.location.pathname : '';
+            if (path === '/my-orders' || path === '/account/notifications') {
+                router.reload({ preserveState: true, preserveScroll: true } as any);
+            }
+        }
+    });
 
     useEffect(() => {
         if (!settings.promo_popup_enabled) return;
@@ -187,19 +222,19 @@ export default function StorefrontLayout({ children }: StorefrontLayoutProps) {
                             {mobileSearchOpen ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
                         </button>
 
-                        <Link href="/" className="text-slate-600 hover:text-slate-950 hidden sm:inline px-2 py-1 rounded-lg hover:bg-slate-50 transition-colors">
+                        <Link href="/" className="text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hidden sm:inline px-2 py-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                             {t('home')}
                         </Link>
-                        <Link href="/catalog" className="text-slate-600 hover:text-slate-950 px-2 py-1 rounded-lg hover:bg-slate-50 transition-colors">
+                        <Link href="/catalog" className="text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white px-2 py-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                             {t('catalog')}
                         </Link>
 
                         {settings.module_ecommerce && settings.module_cart && (
                             <Link
                                 href="/cart"
-                                className="relative inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                                className="relative inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors"
                             >
-                                <ShoppingBag className="w-4 h-4 text-slate-700" />
+                                <ShoppingBag className="w-4 h-4 text-slate-700 dark:text-slate-200" />
                                 <span className="hidden sm:inline text-xs">{t('cart')}</span>
                                 {cartCount > 0 && (
                                     <span
@@ -215,31 +250,43 @@ export default function StorefrontLayout({ children }: StorefrontLayoutProps) {
                         {auth.customer ? (
                             <div className="flex items-center gap-2">
                                 <Link
+                                    href="/account/notifications"
+                                    title={locale === 'ar' ? 'الإشعارات' : 'Notifications'}
+                                    className="relative p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                    <Bell className="w-4 h-4" />
+                                    {unreadCount > 0 && (
+                                        <span className="absolute -top-1 -end-1 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">
+                                            {unreadCount > 99 ? '99+' : unreadCount}
+                                        </span>
+                                    )}
+                                </Link>
+                                <Link
                                     href="/wishlist"
                                     title={locale === 'ar' ? 'المفضلة' : 'Wishlist'}
-                                    className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                    className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                                 >
                                     <Heart className="w-4 h-4" />
                                 </Link>
                                 <Link
                                     href="/profile"
-                                    className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition-colors"
+                                    className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-transparent dark:border-slate-700 text-xs font-semibold transition-colors"
                                 >
-                                    <User className="w-3.5 h-3.5 text-teal-700" />
+                                    <User className="w-3.5 h-3.5 text-teal-700 dark:text-teal-400" />
                                     <span>{auth.customer.name}</span>
                                 </Link>
                                 <button
                                     type="button"
                                     onClick={() => router.post('/logout')}
                                     title={t('logout')}
-                                    className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                    className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                                 >
                                     <LogOut className="w-4 h-4" />
                                 </button>
                             </div>
                         ) : (
                             <div className="flex items-center gap-2">
-                                <Link href="/login" className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold hover:bg-slate-50">
+                                <Link href="/login" className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                                     {t('login')}
                                 </Link>
                                 <Link
@@ -434,6 +481,25 @@ export default function StorefrontLayout({ children }: StorefrontLayoutProps) {
                     </div>
                 </div>
             </footer>
+
+            {liveNotifToast && (
+                <div className="fixed bottom-5 end-5 z-50 max-w-sm w-full bg-white dark:bg-slate-900 border border-teal-300 dark:border-teal-700 rounded-2xl shadow-xl p-4 flex items-start gap-3">
+                    <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 shrink-0">
+                        <Bell className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <Link href={liveNotifToast.data.url || '/account/notifications'} onClick={() => setLiveNotifToast(null)} className="text-xs font-bold block hover:underline">
+                            {locale === 'ar' ? liveNotifToast.data.title_ar || liveNotifToast.data.title_en : liveNotifToast.data.title_en}
+                        </Link>
+                        <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">
+                            {locale === 'ar' ? liveNotifToast.data.body_ar || liveNotifToast.data.body_en : liveNotifToast.data.body_en}
+                        </p>
+                    </div>
+                    <button type="button" onClick={() => setLiveNotifToast(null)} className="text-slate-400 hover:text-slate-600 p-1">
+                        <X className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

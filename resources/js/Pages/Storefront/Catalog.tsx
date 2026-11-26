@@ -370,15 +370,15 @@ export default function Catalog({ products, categories, brands, attributes = [],
             />
 
             {/* Header Banner */}
-            <div className="bg-gradient-to-b from-teal-50/70 to-white border-b border-slate-200/70">
+            <div className="bg-gradient-to-b from-teal-50/70 to-white dark:from-slate-900 dark:to-slate-950 border-b border-slate-200/70 dark:border-slate-800">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-up">
                     <div>
                         <div className="text-xs text-slate-400 mb-1">
-                            <Link href="/" className="hover:text-teal-700">{t('home')}</Link> / <span>{t('catalog')}</span>
+                            <Link href="/" className="hover:text-teal-700 dark:hover:text-teal-400">{t('home')}</Link> / <span>{t('catalog')}</span>
                         </div>
                         <div className="flex items-center gap-3">
-                            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{t('catalog')}</h1>
-                            <span className="px-2.5 py-0.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold">
+                            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">{t('catalog')}</h1>
+                            <span className="px-2.5 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800/70 text-teal-800 dark:text-teal-300 text-xs font-bold">
                                 {products.total} {t('products')}
                             </span>
                         </div>

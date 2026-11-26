@@ -15,6 +15,7 @@ use App\Services\AuditLogger;
 use App\Services\ImageService;
 use App\Services\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
+use App\Services\RealtimeNotificationService;
 use App\Services\SettingsService;
 use App\Support\ErrorLogger;
 use App\Support\Money;
@@ -38,6 +39,7 @@ class CartCheckoutController extends Controller
         private readonly PaymentGatewayManager $gatewayManager,
         private readonly AuditLogger $audit,
         private readonly ImageService $images,
+        private readonly RealtimeNotificationService $realtime,
     ) {}
 
     public function cart(Request $request): Response
@@ -812,7 +814,10 @@ class CartCheckoutController extends Controller
                 'transaction_reference' => $transactionId,
             ]);
 
-            return $status === 'completed' ? 'paid' : $status;
+            $outcome = $status === 'completed' ? 'paid' : $status;
+            $this->realtime->paymentOutcome($order->fresh(), $outcome);
+
+            return $outcome;
         });
     }
 }

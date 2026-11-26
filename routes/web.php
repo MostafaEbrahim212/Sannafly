@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ImportExportController;
 use App\Http\Controllers\Admin\InquiryController;
 use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PaymentMethodController;
 use App\Http\Controllers\Admin\PolicyController;
@@ -28,6 +29,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\CustomerAuthController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\CartCheckoutController;
+use App\Http\Controllers\CustomerNotificationController;
 use App\Http\Controllers\CustomerProfileController;
 use App\Http\Controllers\ProductReviewController;
 use App\Http\Controllers\StorefrontController;
@@ -58,6 +60,7 @@ Route::post('/payments/callback/{driver}', [CartCheckoutController::class, 'paym
 Route::get('/orders/confirmation/{orderNumber}', [CartCheckoutController::class, 'confirmation'])->name('orders.confirmation');
 Route::post('/orders/{orderNumber}/retry-payment', [CartCheckoutController::class, 'retryPayment'])->middleware('throttle:10,1')->name('orders.retry-payment');
 Route::get('/track-order', [CartCheckoutController::class, 'trackOrder'])->name('orders.track');
+Route::get('/orders/{orderNumber}/live-status', [CustomerNotificationController::class, 'orderLiveStatus'])->name('orders.live-status');
 
 // Storefront Customer Authentication
 Route::middleware('guest:customer')->group(function () {
@@ -84,6 +87,13 @@ Route::middleware('auth:customer')->group(function () {
     Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist.index');
     Route::post('/wishlist/toggle', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
     Route::post('/products/{product}/reviews', [ProductReviewController::class, 'store'])->middleware('throttle:10,1')->name('products.reviews.store');
+
+    // Customer Notifications & Realtime Feed
+    Route::get('/account/notifications', [CustomerNotificationController::class, 'index'])->name('customer.notifications.index');
+    Route::get('/account/realtime/feed', [CustomerNotificationController::class, 'feed'])->name('customer.realtime.feed');
+    Route::post('/account/notifications/{id}/read', [CustomerNotificationController::class, 'markRead'])->name('customer.notifications.read');
+    Route::post('/account/notifications/read-all', [CustomerNotificationController::class, 'markAllRead'])->name('customer.notifications.read-all');
+    Route::delete('/account/notifications/{id}', [CustomerNotificationController::class, 'destroy'])->name('customer.notifications.destroy');
 });
 
 // Admin Authentication (completely separated from Customer)
@@ -100,6 +110,14 @@ Route::prefix('admin')->group(function () {
 // Secure Admin Dashboard
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permission:dashboard.access'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Admin Notifications & Realtime Feed
+    Route::get('/notifications', [AdminNotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/realtime/feed', [AdminNotificationController::class, 'feed'])->name('realtime.feed');
+    Route::post('/notifications/{id}/read', [AdminNotificationController::class, 'markRead'])->name('notifications.read');
+    Route::post('/notifications/read-all', [AdminNotificationController::class, 'markAllRead'])->name('notifications.read-all');
+    Route::delete('/notifications/{id}', [AdminNotificationController::class, 'destroy'])->name('notifications.destroy');
+    Route::delete('/notifications', [AdminNotificationController::class, 'clearRead'])->name('notifications.clear-read');
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');

@@ -4,6 +4,7 @@ import { AlertCircle, CheckCircle2, CreditCard, MapPin, PackageSearch, Printer, 
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
 import SeoHead from '@/Components/SeoHead';
 import { useTranslation } from '@/lib/i18n';
+import { useRealtimeFeed } from '@/lib/useRealtime';
 
 const STEPS = [
     { key: 'pending', en: 'Pending', ar: 'تم الاستلام' },
@@ -33,6 +34,22 @@ export default function OrderConfirmation({
         (order.status === 'pending' || (order.status === 'cancelled' && order.payment_status === 'failed'));
     const chosenMethod = paymentMethods.find((m) => m.id === selectedMethodId) || order.payment_method;
     const isChosenOnline = ['myfatoorah', 'fawry'].includes(chosenMethod?.driver);
+
+    const shouldWatchLive = order.status !== 'delivered' && order.status !== 'cancelled' && order.status !== 'refunded';
+    useRealtimeFeed<{ status: string; payment_status: string; tracking_number?: string | null }>(
+        order?.order_number ? `/orders/${encodeURIComponent(order.order_number)}/live-status` : null,
+        shouldWatchLive,
+        (live) => {
+            if (
+                live.status !== order.status ||
+                live.payment_status !== order.payment_status ||
+                (live.tracking_number ?? null) !== (order.tracking_number ?? null)
+            ) {
+                router.reload({ preserveState: true, preserveScroll: true } as any);
+            }
+        },
+        5000
+    );
 
     const handleRetryPayment = () => {
         setRetrying(true);

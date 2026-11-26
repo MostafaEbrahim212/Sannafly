@@ -45,6 +45,7 @@ class OrderService
         private readonly ShippingService $shipping,
         private readonly SettingsService $settings,
         private readonly PaymentGatewayManager $gatewayManager,
+        private readonly ?RealtimeNotificationService $realtime = null,
     ) {}
 
     public static function allowedNextStatuses(string $currentStatus): array
@@ -267,6 +268,7 @@ class OrderService
                 ]);
 
                 $this->notifyCustomer($order, true);
+                ($this->realtime ?? app(RealtimeNotificationService::class))->orderPlaced($order);
 
                 return $order->load(['items', 'paymentMethod']);
             });
@@ -355,6 +357,9 @@ class OrderService
 
             if ($newStatus !== $oldStatus) {
                 $this->notifyCustomer($locked, false);
+                ($this->realtime ?? app(RealtimeNotificationService::class))->orderStatusChanged($locked, $oldStatus);
+            } elseif ($paymentStatus !== null && $paymentStatus !== $locked->getOriginal('payment_status')) {
+                ($this->realtime ?? app(RealtimeNotificationService::class))->paymentOutcome($locked, $locked->payment_status);
             }
 
             return $locked;
