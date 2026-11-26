@@ -11,13 +11,13 @@ import {
     CreditCard,
     ExternalLink,
     FileSpreadsheet,
+    FileText,
     FolderTree,
     Globe,
     LayoutDashboard,
     LogOut,
     Menu,
     MessageSquare,
-    Moon,
     Package,
     Paintbrush,
     Percent,
@@ -32,15 +32,17 @@ import {
     Sparkles,
     Star,
     Store,
-    Sun,
     Tag,
     Truck,
     Users,
+    Wrench,
     X,
 } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
+import { useColorMode } from '@/lib/colorMode';
 import { applyThemeSettings } from '@/lib/theme';
 import BrandLogo from '@/Components/BrandLogo';
+import ThemeToggle from '@/Components/ThemeToggle';
 import type { PageProps } from '@/types';
 
 interface AdminLayoutProps {
@@ -63,7 +65,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
     });
     const [navQuery, setNavQuery] = useState('');
     const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
-    const [dark, setDark] = useState(false);
+    const { mode, isDark, setMode } = useColorMode();
 
     useEffect(() => {
         document.documentElement.dir = dir;
@@ -72,19 +74,13 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
 
     useEffect(() => {
         applyThemeSettings(settings);
-    }, [settings.primary_color, settings.accent_color, settings.text_color, settings.theme_surface, settings.border_radius]);
+    }, [isDark, settings.primary_color, settings.accent_color, settings.text_color, settings.theme_surface, settings.border_radius]);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
             localStorage.setItem('cf_sidebar_collapsed', collapsed ? '1' : '0');
         }
     }, [collapsed]);
-
-    const toggleDark = () => {
-        const next = !dark;
-        setDark(next);
-        document.documentElement.classList.toggle('dark', next);
-    };
 
     const toggleGroup = (key: string) => {
         setCollapsedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -130,6 +126,8 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                 { label: t('users'), href: '/admin/users', icon: Users, perm: 'users.view' },
                 { label: t('roles'), href: '/admin/roles', icon: Shield, perm: 'users.manage_roles' },
                 { label: t('audit_logs'), href: '/admin/audit-logs', icon: Activity, perm: 'audit_logs.view' },
+                { label: locale === 'ar' ? 'سجلات النظام' : 'System Logs', href: '/admin/system-logs', icon: FileText, perm: 'audit_logs.view' },
+                { label: locale === 'ar' ? 'أدوات الصيانة والباك اب' : 'System Tools', href: '/admin/system-tools', icon: Wrench, perm: 'settings.manage' },
                 { label: t('customizer'), href: '/admin/customizer', icon: Paintbrush, perm: 'settings.manage' },
                 { label: locale === 'ar' ? 'السياسات والصفحات' : 'Policies & Pages', href: '/admin/policies', icon: ShieldCheck, perm: 'settings.manage' },
                 { label: t('settings'), href: '/admin/settings', icon: Settings, perm: 'settings.view' },
@@ -356,29 +354,23 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                         )}
                         <a
                             href={`/locale/${locale === 'ar' ? 'en' : 'ar'}`}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold hover:bg-slate-50 transition-colors"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                         >
-                            <Globe className="w-3.5 h-3.5 text-teal-600" />
+                            <Globe className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
                             <span>{locale === 'ar' ? 'English' : 'العربية'}</span>
                         </a>
-                        <button
-                            onClick={toggleDark}
-                            className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 transition-colors"
-                            aria-label="Toggle theme"
-                        >
-                            {dark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
-                        </button>
+                        <ThemeToggle mode={mode} isDark={isDark} onChange={setMode} locale={locale} />
                     </div>
                 </header>
 
                 <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
                     {flash?.success && (
-                        <div className="no-print mb-5 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium shadow-xs">
+                        <div className="no-print mb-5 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-sm font-medium shadow-xs">
                             {flash.success}
                         </div>
                     )}
                     {flash?.error && (
-                        <div className="no-print mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm font-medium shadow-xs">
+                        <div className="no-print mb-5 p-3.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 text-red-800 dark:text-red-300 text-sm font-medium shadow-xs">
                             {flash.error}
                         </div>
                     )}

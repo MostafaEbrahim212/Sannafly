@@ -5,6 +5,22 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="csrf-token" content="{{ csrf_token() }}" />
         <meta name="theme-color" content="#0A5C57" />
+        <script>
+            (function () {
+                try {
+                    var mode = localStorage.getItem('sf_color_mode') || 'light';
+                    var isDark = mode === 'dark' || (mode === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                    if (isDark) {
+                        document.documentElement.classList.add('dark');
+                        document.documentElement.style.colorScheme = 'dark';
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                        document.documentElement.style.colorScheme = 'light';
+                    }
+                    document.documentElement.dataset.colorMode = mode;
+                } catch (e) {}
+            })();
+        </script>
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <title inertia>{{ config('app.name', 'Sannafly') }}</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />

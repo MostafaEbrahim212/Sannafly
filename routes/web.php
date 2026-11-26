@@ -21,6 +21,8 @@ use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\ShippingZoneController;
+use App\Http\Controllers\Admin\SystemLogController;
+use App\Http\Controllers\Admin\SystemToolsController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\CustomerAuthController;
@@ -165,6 +167,18 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permissio
 
     // Audit Logs
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->middleware('permission:audit_logs.view')->name('audit-logs.index');
+
+    // System Logs & Developer/Ops Tools
+    Route::get('/system-logs', [SystemLogController::class, 'index'])->middleware('permission:audit_logs.view')->name('system-logs.index');
+    Route::get('/system-logs/download', [SystemLogController::class, 'download'])->middleware('permission:audit_logs.view')->name('system-logs.download');
+    Route::post('/system-logs/clear', [SystemLogController::class, 'clear'])->middleware('permission:settings.manage')->name('system-logs.clear');
+    Route::delete('/system-logs', [SystemLogController::class, 'destroy'])->middleware('permission:settings.manage')->name('system-logs.destroy');
+
+    Route::get('/system-tools', [SystemToolsController::class, 'index'])->middleware('permission:settings.manage')->name('system-tools.index');
+    Route::post('/system-tools/action', [SystemToolsController::class, 'runAction'])->middleware('permission:settings.manage')->name('system-tools.action');
+    Route::post('/system-tools/backup', [SystemToolsController::class, 'createBackup'])->middleware('permission:settings.manage')->name('system-tools.backup.create');
+    Route::get('/system-tools/backup/download', [SystemToolsController::class, 'downloadBackup'])->middleware('permission:settings.manage')->name('system-tools.backup.download');
+    Route::delete('/system-tools/backup', [SystemToolsController::class, 'deleteBackup'])->middleware('permission:settings.manage')->name('system-tools.backup.delete');
 
     // Settings, Customizer, Payment Methods
     Route::get('/settings', [SettingsController::class, 'index'])->middleware('permission:settings.view')->name('settings.index');

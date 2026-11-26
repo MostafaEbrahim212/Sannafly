@@ -32,8 +32,18 @@ class RequestContextMiddleware
             'user_id' => $request->user()?->getAuthIdentifier(),
         ], static fn ($value) => $value !== null && $value !== ''));
 
+        $startedAt = microtime(true);
         $response = $next($request);
+        $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
+
         $response->headers->set('X-Request-Id', $requestId);
+
+        if ($durationMs >= 1500 && ! app()->runningUnitTests()) {
+            Log::warning('Slow HTTP request detected', [
+                'duration_ms' => $durationMs,
+                'status' => $response->getStatusCode(),
+            ]);
+        }
 
         return $response;
     }

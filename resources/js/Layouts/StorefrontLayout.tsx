@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import { CheckCircle2, Copy, Globe, Heart, LogOut, Mail, Megaphone, MessageCircle, PackageSearch, Phone, Search, ShoppingBag, Sparkles, Tag, User, X, XCircle } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
+import { useColorMode } from '@/lib/colorMode';
 import { applyThemeSettings } from '@/lib/theme';
 import BrandLogo from '@/Components/BrandLogo';
+import ThemeToggle from '@/Components/ThemeToggle';
 import type { PageProps } from '@/types';
 
 interface StorefrontLayoutProps {
@@ -19,6 +21,7 @@ export default function StorefrontLayout({ children }: StorefrontLayoutProps) {
     const [barDismissed, setBarDismissed] = useState(false);
     const [popupOpen, setPopupOpen] = useState(false);
     const [copiedCoupon, setCopiedCoupon] = useState(false);
+    const { mode, isDark, setMode, cycleMode } = useColorMode();
 
     useEffect(() => {
         if (!settings.promo_popup_enabled) return;
@@ -42,7 +45,7 @@ export default function StorefrontLayout({ children }: StorefrontLayoutProps) {
 
     useEffect(() => {
         applyThemeSettings(settings);
-    }, [settings.primary_color, settings.accent_color, settings.text_color, settings.theme_surface, settings.border_radius]);
+    }, [isDark, settings.primary_color, settings.accent_color, settings.text_color, settings.theme_surface, settings.border_radius]);
 
     useEffect(() => {
         if (flash?.success) {
@@ -149,15 +152,16 @@ export default function StorefrontLayout({ children }: StorefrontLayoutProps) {
                             <Globe className="w-3 h-3" />
                             <span>{locale === 'ar' ? 'English' : 'العربية'}</span>
                         </a>
+                        <ThemeToggle mode={mode} isDark={isDark} onChange={setMode} onCycle={cycleMode} locale={locale} variant="compact" />
                     </div>
                 </div>
             </div>
 
             {/* Main Sticky Header */}
-            <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/70">
+            <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/70 dark:border-slate-800">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between gap-4">
                     <Link href="/" className="flex items-center gap-2.5 shrink-0">
-                        <BrandLogo variant="light" customName={siteName} />
+                        <BrandLogo variant={isDark ? 'dark' : 'light'} customName={siteName} />
                     </Link>
 
                     <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-lg relative">

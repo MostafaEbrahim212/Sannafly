@@ -58,9 +58,10 @@ export function applyThemeSettings(settings: ThemeSettings | Record<string, any>
         root.style.setProperty('--cf-accent', accentHex);
     }
 
+    const isDark = root.classList.contains('dark');
     const textHex = settings.text_color || '#15211F';
     const textRgb = hexToRgb(textHex);
-    if (textRgb) {
+    if (textRgb && !isDark) {
         const white: [number, number, number] = [255, 255, 255];
         root.style.setProperty('--cf-text', textHex);
         root.style.setProperty('--color-slate-900', `rgb(${textRgb[0]} ${textRgb[1]} ${textRgb[2]})`);
@@ -68,6 +69,13 @@ export function applyThemeSettings(settings: ThemeSettings | Record<string, any>
         root.style.setProperty('--color-slate-700', mixRgb(textRgb, white, 0.28));
         root.style.setProperty('--color-slate-600', mixRgb(textRgb, white, 0.42));
         root.style.setProperty('--color-slate-500', mixRgb(textRgb, white, 0.56));
+    } else {
+        root.style.setProperty('--cf-text', isDark ? '#f1f5f9' : textHex);
+        root.style.removeProperty('--color-slate-900');
+        root.style.removeProperty('--color-slate-800');
+        root.style.removeProperty('--color-slate-700');
+        root.style.removeProperty('--color-slate-600');
+        root.style.removeProperty('--color-slate-500');
     }
 
     const surface = settings.theme_surface || 'warm';
@@ -77,7 +85,7 @@ export function applyThemeSettings(settings: ThemeSettings | Record<string, any>
         slate: '#f1f5f9',
         pure: '#ffffff',
     };
-    root.style.setProperty('--cf-bg', bgMap[surface] || '#FAF7F0');
+    root.style.setProperty('--cf-bg', isDark ? '#0B1120' : (bgMap[surface] || '#FAF7F0'));
 
     const radius = settings.border_radius || 'rounded';
     const radiusScale: Record<string, { lg: string; xl: string; '2xl': string; '3xl': string }> = {

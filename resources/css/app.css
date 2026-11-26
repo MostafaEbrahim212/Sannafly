@@ -19,6 +19,74 @@ p, h1, h2, h3, h4, h5, h6, li, td, input[type="text"], textarea {
     unicode-bidi: plaintext;
 }
 
+/* Professional Dark Mode Surface & Control Fallbacks */
+html.dark body {
+    background-color: #0b1120;
+    color: #f1f5f9;
+}
+
+html.dark .bg-white:not([class*="dark:bg-"]) {
+    background-color: #0f172a;
+}
+
+html.dark .bg-slate-50:not([class*="dark:bg-"]),
+html.dark .bg-slate-50\/70:not([class*="dark:bg-"]),
+html.dark .bg-slate-50\/80:not([class*="dark:bg-"]),
+html.dark .bg-slate-50\/40:not([class*="dark:bg-"]) {
+    background-color: rgba(30, 41, 59, 0.65);
+}
+
+html.dark .bg-slate-100:not([class*="dark:bg-"]) {
+    background-color: #1e293b;
+}
+
+html.dark .border-slate-200:not([class*="dark:border-"]),
+html.dark .border-slate-200\/80:not([class*="dark:border-"]),
+html.dark .border-slate-200\/70:not([class*="dark:border-"]),
+html.dark .border-slate-300:not([class*="dark:border-"]) {
+    border-color: #1e293b;
+}
+
+html.dark .border-slate-100:not([class*="dark:border-"]),
+html.dark .border-slate-50:not([class*="dark:border-"]) {
+    border-color: rgba(30, 41, 59, 0.7);
+}
+
+html.dark .text-slate-900:not([class*="dark:text-"]),
+html.dark .text-slate-950:not([class*="dark:text-"]) {
+    color: #f8fafc;
+}
+
+html.dark .text-slate-800:not([class*="dark:text-"]) {
+    color: #e2e8f0;
+}
+
+html.dark .text-slate-700:not([class*="dark:text-"]) {
+    color: #cbd5e1;
+}
+
+html.dark .text-slate-600:not([class*="dark:text-"]) {
+    color: #94a3b8;
+}
+
+html.dark .text-teal-800:not([class*="dark:text-"]),
+html.dark .text-teal-700:not([class*="dark:text-"]) {
+    color: #2dd4bf;
+}
+
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([class*="dark:bg-"]),
+html.dark select:not([class*="dark:bg-"]),
+html.dark textarea:not([class*="dark:bg-"]) {
+    background-color: #0f172a;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+    color: #64748b;
+}
+
 @keyframes cf-fade-up {
     from {
         opacity: 0;

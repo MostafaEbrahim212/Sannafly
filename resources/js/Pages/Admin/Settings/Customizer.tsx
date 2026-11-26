@@ -1,17 +1,39 @@
 import React, { useEffect, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
-import { Check, Copy, Eye, LayoutGrid, Megaphone, Monitor, Package, Paintbrush, Palette, Smartphone, Sparkles, Tag, Type, X } from 'lucide-react';
+import { Check, Copy, Eye, LayoutGrid, Megaphone, Monitor, Moon, Package, Paintbrush, Palette, Smartphone, Sparkles, Sun, Tag, Type, X } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useTranslation } from '@/lib/i18n';
+import { useColorMode } from '@/lib/colorMode';
 import { applyThemeSettings } from '@/lib/theme';
 
-const THEME_PRESETS = [
-    { name: 'Sannafly Petrol', nameAr: 'بترولي صنّفلي (الأساسي)', primary: '#0A5C57', accent: '#F6A21E', text: '#15211F', surface: 'warm', radius: 'rounded' },
-    { name: 'Petrol Deep', nameAr: 'بترولي عميق', primary: '#063F3C', accent: '#109684', text: '#15211F', surface: 'clean', radius: 'rounded' },
-    { name: 'Royal Indigo', nameAr: 'نيلي ملكي', primary: '#4338ca', accent: '#ec4899', text: '#1e1b4b', surface: 'clean', radius: 'rounded' },
-    { name: 'Obsidian Gold', nameAr: 'أسود فاخر', primary: '#0f172a', accent: '#d97706', text: '#1c1917', surface: 'warm', radius: 'sharp' },
-    { name: 'Crimson Studio', nameAr: 'قرمزي جريء', primary: '#be123c', accent: '#FF6B4A', text: '#18181b', surface: 'pure', radius: 'pill' },
-    { name: 'Oceanic Blue', nameAr: 'أزرق محيطي', primary: '#1d4ed8', accent: '#06b6d4', text: '#0f172a', surface: 'slate', radius: 'rounded' },
+interface ThemePreset {
+    name: string;
+    nameAr: string;
+    mode: 'light' | 'dark';
+    primary: string;
+    accent: string;
+    text: string;
+    surface: string;
+    radius: string;
+    previewBg: string;
+}
+
+const THEME_PRESETS: ThemePreset[] = [
+    // Light Presets
+    { name: 'Sannafly Petrol', nameAr: 'بترولي صنّفلي', mode: 'light', primary: '#0A5C57', accent: '#F6A21E', text: '#15211F', surface: 'warm', radius: 'rounded', previewBg: '#FAF7F0' },
+    { name: 'Petrol Deep', nameAr: 'بترولي عميق', mode: 'light', primary: '#063F3C', accent: '#109684', text: '#15211F', surface: 'clean', radius: 'rounded', previewBg: '#E9F0ED' },
+    { name: 'Royal Indigo', nameAr: 'نيلي ملكي', mode: 'light', primary: '#4338ca', accent: '#ec4899', text: '#1e1b4b', surface: 'clean', radius: 'rounded', previewBg: '#EEF2FF' },
+    { name: 'Oceanic Blue', nameAr: 'أزرق محيطي', mode: 'light', primary: '#1d4ed8', accent: '#06b6d4', text: '#0f172a', surface: 'slate', radius: 'rounded', previewBg: '#F1F5F9' },
+    { name: 'Crimson Studio', nameAr: 'قرمزي جريء', mode: 'light', primary: '#be123c', accent: '#FF6B4A', text: '#18181b', surface: 'pure', radius: 'pill', previewBg: '#FFFFFF' },
+    { name: 'Emerald Nature', nameAr: 'زمردي طبيعي', mode: 'light', primary: '#047857', accent: '#f59e0b', text: '#14532d', surface: 'warm', radius: 'rounded', previewBg: '#F0FDF4' },
+
+    // Dark Presets
+    { name: 'Midnight Petrol', nameAr: 'بترولي ليلي', mode: 'dark', primary: '#0d9488', accent: '#f59e0b', text: '#f1f5f9', surface: 'slate', radius: 'rounded', previewBg: '#0b1120' },
+    { name: 'Obsidian Gold', nameAr: 'سبج ذهبي', mode: 'dark', primary: '#d97706', accent: '#fbbf24', text: '#fafaf9', surface: 'slate', radius: 'sharp', previewBg: '#09090b' },
+    { name: 'Cyber Indigo', nameAr: 'نيلي ليلي', mode: 'dark', primary: '#6366f1', accent: '#ec4899', text: '#f8fafc', surface: 'slate', radius: 'rounded', previewBg: '#0f172a' },
+    { name: 'Nordic Slate', nameAr: 'أزرق شمالي', mode: 'dark', primary: '#0284c7', accent: '#2dd4bf', text: '#f1f5f9', surface: 'slate', radius: 'rounded', previewBg: '#0b1322' },
+    { name: 'Velvet Crimson', nameAr: 'مخملي قرمزي', mode: 'dark', primary: '#e11d48', accent: '#fb923c', text: '#fafafa', surface: 'slate', radius: 'pill', previewBg: '#130b12' },
+    { name: 'Forest Night', nameAr: 'غابة ليلية', mode: 'dark', primary: '#059669', accent: '#a3e635', text: '#ecfdf5', surface: 'slate', radius: 'rounded', previewBg: '#071510' },
 ];
 
 export default function Customizer({
@@ -24,8 +46,14 @@ export default function Customizer({
     promotions?: Record<string, any>;
 }) {
     const { t, locale } = useTranslation();
+    const { isDark, setMode } = useColorMode();
     const [tab, setTab] = useState<'brand' | 'hero' | 'layout' | 'promos'>('brand');
     const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
+    const [previewDark, setPreviewDark] = useState<boolean>(isDark);
+
+    useEffect(() => {
+        setPreviewDark(isDark);
+    }, [isDark]);
 
     const [siteName, setSiteName] = useState(general.site_name || 'Sannafly');
     const [siteNameAr, setSiteNameAr] = useState(general.site_name_ar || 'كتالوج فلو');
@@ -176,44 +204,75 @@ export default function Customizer({
                     <div className="p-6 space-y-4 flex-1">
                         {tab === 'brand' && (
                             <>
-                                {/* Ready-made Theme Presets */}
-                                <div>
-                                    <label className="flex items-center gap-1.5 text-xs font-bold mb-2 text-slate-600">
-                                        <Palette className="w-3.5 h-3.5 text-teal-700" />
-                                        <span>{locale === 'ar' ? 'قوالب ألوان وتصميم جاهزة' : 'Designer Theme Presets'}</span>
-                                    </label>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                        {THEME_PRESETS.map((preset) => {
-                                            const active = primaryColor.toLowerCase() === preset.primary.toLowerCase();
-                                            return (
-                                                <button
-                                                    key={preset.name}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setPrimaryColor(preset.primary);
-                                                        setAccentColor(preset.accent);
-                                                        setTextColor(preset.text);
-                                                        setThemeSurface(preset.surface);
-                                                        setBorderRadius(preset.radius);
-                                                    }}
-                                                    className={`p-2.5 rounded-xl border text-start transition-all ${
-                                                        active ? 'border-teal-600 bg-teal-50/60 shadow-xs' : 'border-slate-200 hover:border-slate-300'
-                                                    }`}
-                                                >
-                                                    <div className="flex items-center justify-between mb-1.5">
-                                                        <div className="flex items-center gap-1">
-                                                            <span className="w-4 h-4 rounded-full" style={{ backgroundColor: preset.primary }} />
-                                                            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: preset.accent }} />
-                                                        </div>
-                                                        {active && <Check className="w-3.5 h-3.5 text-teal-700" />}
-                                                    </div>
-                                                    <div className="text-[11px] font-bold truncate">
-                                                        {locale === 'ar' ? preset.nameAr : preset.name}
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
+                                {/* Ready-made Light & Dark Theme Presets */}
+                                <div className="space-y-4">
+                                    {(['light', 'dark'] as const).map((groupMode) => {
+                                        const presets = THEME_PRESETS.filter((p) => p.mode === groupMode);
+                                        return (
+                                            <div key={groupMode}>
+                                                <label className="flex items-center gap-1.5 text-xs font-bold mb-2 text-slate-600 dark:text-slate-300">
+                                                    {groupMode === 'dark' ? (
+                                                        <Moon className="w-3.5 h-3.5 text-amber-400" />
+                                                    ) : (
+                                                        <Sun className="w-3.5 h-3.5 text-amber-500" />
+                                                    )}
+                                                    <span>
+                                                        {groupMode === 'dark'
+                                                            ? locale === 'ar'
+                                                                ? 'ثيمات داكنة جاهزة (Dark)'
+                                                                : 'Ready-Made Dark Themes'
+                                                            : locale === 'ar'
+                                                              ? 'ثيمات فاتحة جاهزة (Light)'
+                                                              : 'Ready-Made Light Themes'}
+                                                    </span>
+                                                </label>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                    {presets.map((preset) => {
+                                                        const active =
+                                                            primaryColor.toLowerCase() === preset.primary.toLowerCase() &&
+                                                            isDark === (preset.mode === 'dark');
+                                                        return (
+                                                            <button
+                                                                key={preset.name}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setPrimaryColor(preset.primary);
+                                                                    setAccentColor(preset.accent);
+                                                                    if (preset.mode === 'light') {
+                                                                        setTextColor(preset.text);
+                                                                    }
+                                                                    setThemeSurface(preset.surface);
+                                                                    setBorderRadius(preset.radius);
+                                                                    setMode(preset.mode);
+                                                                    setPreviewDark(preset.mode === 'dark');
+                                                                }}
+                                                                className={`p-2.5 rounded-xl border text-start transition-all ${
+                                                                    active
+                                                                        ? 'border-teal-600 bg-teal-50/70 dark:bg-teal-950/40 dark:border-teal-500 shadow-xs'
+                                                                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800/50'
+                                                                }`}
+                                                            >
+                                                                <div className="flex items-center justify-between mb-1.5">
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span
+                                                                            className="w-4 h-4 rounded-full border border-black/10 dark:border-white/20"
+                                                                            style={{ backgroundColor: preset.previewBg }}
+                                                                        />
+                                                                        <span className="w-4 h-4 rounded-full" style={{ backgroundColor: preset.primary }} />
+                                                                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: preset.accent }} />
+                                                                    </div>
+                                                                    {active && <Check className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />}
+                                                                </div>
+                                                                <div className="text-[11px] font-bold truncate text-slate-800 dark:text-slate-100">
+                                                                    {locale === 'ar' ? preset.nameAr : preset.name}
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t">
@@ -573,7 +632,7 @@ export default function Customizer({
                         )}
                     </div>
 
-                    <div className="p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70">
+                    <div className="p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/60">
                         <button type="submit" className="w-full py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-sm shadow-sm">
                             {t('publish_appearance')}
                         </button>
@@ -583,29 +642,53 @@ export default function Customizer({
                 {/* Right Live Preview Panel */}
                 <div className="xl:col-span-7 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col">
                     <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2 text-xs font-bold uppercase text-slate-500">
-                            <Eye className="w-4 h-4 text-teal-600" />
+                        <div className="flex items-center gap-2 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">
+                            <Eye className="w-4 h-4 text-teal-600 dark:text-teal-400" />
                             <span>{t('live_preview')}</span>
                         </div>
-                        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-                            <button
-                                type="button"
-                                onClick={() => setPreviewDevice('desktop')}
-                                className={`p-1.5 rounded-lg ${previewDevice === 'desktop' ? 'bg-white shadow-xs text-teal-700' : 'text-slate-500'}`}
-                            >
-                                <Monitor className="w-4 h-4" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setPreviewDevice('mobile')}
-                                className={`p-1.5 rounded-lg ${previewDevice === 'mobile' ? 'bg-white shadow-xs text-teal-700' : 'text-slate-500'}`}
-                            >
-                                <Smartphone className="w-4 h-4" />
-                            </button>
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                                <button
+                                    type="button"
+                                    onClick={() => setPreviewDark(false)}
+                                    title={locale === 'ar' ? 'معاينة فاتحة' : 'Light preview'}
+                                    className={`p-1.5 rounded-lg ${!previewDark ? 'bg-white dark:bg-slate-900 shadow-xs text-amber-500' : 'text-slate-500 dark:text-slate-400'}`}
+                                >
+                                    <Sun className="w-4 h-4" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPreviewDark(true)}
+                                    title={locale === 'ar' ? 'معاينة داكنة' : 'Dark preview'}
+                                    className={`p-1.5 rounded-lg ${previewDark ? 'bg-white dark:bg-slate-900 shadow-xs text-amber-400' : 'text-slate-500 dark:text-slate-400'}`}
+                                >
+                                    <Moon className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                                <button
+                                    type="button"
+                                    onClick={() => setPreviewDevice('desktop')}
+                                    className={`p-1.5 rounded-lg ${previewDevice === 'desktop' ? 'bg-white dark:bg-slate-900 shadow-xs text-teal-700 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400'}`}
+                                >
+                                    <Monitor className="w-4 h-4" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPreviewDevice('mobile')}
+                                    className={`p-1.5 rounded-lg ${previewDevice === 'mobile' ? 'bg-white dark:bg-slate-900 shadow-xs text-teal-700 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400'}`}
+                                >
+                                    <Smartphone className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <div className={`mx-auto w-full rounded-2xl border border-slate-200 overflow-hidden bg-white text-slate-900 shadow-sm transition-all ${previewDevice === 'mobile' ? 'max-w-[360px]' : ''}`}>
+                    <div
+                        className={`mx-auto w-full rounded-2xl border overflow-hidden shadow-sm transition-all ${
+                            previewDark ? 'bg-slate-950 text-slate-100 border-slate-800' : 'bg-white text-slate-900 border-slate-200'
+                        } ${previewDevice === 'mobile' ? 'max-w-[360px]' : ''}`}
+                    >
                         {promoBarEnabled && (
                             <div
                                 className="px-3 py-1.5 text-[10px] font-semibold flex items-center justify-between gap-2"

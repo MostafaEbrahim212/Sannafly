@@ -80,6 +80,42 @@ class ErrorLogger
     }
 
     /**
+     * Log a structured payment lifecycle event to the dedicated payments channel.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    public static function payment(string $event, array $context = [], string $level = 'info'): void
+    {
+        $payload = array_merge(
+            self::buildRequestContext(self::safeRequest()),
+            ['event' => $event],
+            self::sanitizeInput($context)
+        );
+
+        Log::channel('payments')->log($level, $event, $payload);
+
+        if (in_array($level, ['warning', 'error', 'critical', 'alert', 'emergency'], true)) {
+            Log::log($level, $event, $payload);
+        }
+    }
+
+    /**
+     * Log a security-relevant event to the dedicated security channel.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    public static function security(string $event, array $context = [], string $level = 'warning'): void
+    {
+        $payload = array_merge(
+            self::buildRequestContext(self::safeRequest()),
+            ['event' => $event],
+            self::sanitizeInput($context)
+        );
+
+        Log::channel('security')->log($level, $event, $payload);
+    }
+
+    /**
      * Build a structured context array for an exception.
      *
      * @param  array<string, mixed>  $extra
