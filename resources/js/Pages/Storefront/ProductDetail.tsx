@@ -155,13 +155,15 @@ export default function ProductDetail({ product, relatedProducts }: ProductDetai
                     <span className="text-slate-700 font-medium truncate">{localized(product.name, product.name_ar)}</span>
                 </nav>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                    {/* Left Gallery */}
-                    <div className="lg:col-span-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+                    {/* Left Gallery (Sticky on desktop) */}
+                    <div className="lg:col-span-6 lg:sticky lg:top-24">
                         <div
                             onClick={() => currentImage && setLightboxOpen(true)}
-                            className={`aspect-square rounded-3xl bg-white border border-slate-200/80 shadow-xs flex items-center justify-center overflow-hidden relative group ${
-                                currentImage ? 'cursor-zoom-in' : ''
+                            className={`aspect-square rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-center overflow-hidden relative group ${
+                                currentImage
+                                    ? 'bg-white dark:bg-slate-900 cursor-zoom-in'
+                                    : 'bg-gradient-to-br from-slate-100 to-slate-200/60 dark:from-slate-800/60 dark:to-slate-900'
                             }`}
                         >
                             {currentImage ? (
@@ -172,7 +174,10 @@ export default function ProductDetail({ product, relatedProducts }: ProductDetai
                                     </span>
                                 </>
                             ) : (
-                                <Package className="w-24 h-24 text-slate-300" />
+                                <div className="flex flex-col items-center gap-3 text-slate-400 dark:text-slate-500">
+                                    <Package className="w-20 h-20 stroke-[1.5]" />
+                                    <span className="text-xs font-medium">{locale === 'ar' ? 'لا توجد صورة للمنتج' : 'No product image'}</span>
+                                </div>
                             )}
                         </div>
                         {images.length > 1 && (
@@ -257,8 +262,8 @@ export default function ProductDetail({ product, relatedProducts }: ProductDetai
                                                     }}
                                                     className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs sm:text-sm font-semibold transition-all ${
                                                         active
-                                                            ? 'border-teal-600 bg-teal-50 text-teal-900 shadow-xs'
-                                                            : 'border-slate-200 bg-white hover:border-slate-300'
+                                                            ? 'border-teal-600 bg-teal-50 text-teal-900 dark:border-teal-500 dark:bg-teal-950/60 dark:text-teal-200 shadow-xs'
+                                                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300 dark:hover:border-slate-500'
                                                     }`}
                                                 >
                                                     {colorOpt?.color_hex && (
@@ -276,71 +281,77 @@ export default function ProductDetail({ product, relatedProducts }: ProductDetai
                             )}
 
                             {/* Actions */}
-                            <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100">
-                                {settings.module_ecommerce && settings.module_cart && (
-                                    <>
-                                        <div className="inline-flex items-center rounded-xl border border-slate-200 bg-slate-50">
+                            <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                <div className="flex items-center gap-2.5">
+                                    {settings.module_ecommerce && settings.module_cart && (
+                                        <>
+                                            <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 shrink-0">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setQty((q) => Math.max(1, q - 1))}
+                                                    className="p-3 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                                                    aria-label="Decrease quantity"
+                                                >
+                                                    <Minus className="w-4 h-4" />
+                                                </button>
+                                                <span className="w-9 text-center text-sm font-bold">{qty}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setQty((q) => q + 1)}
+                                                    className="p-3 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                                                    aria-label="Increase quantity"
+                                                >
+                                                    <Plus className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                             <button
-                                                type="button"
-                                                onClick={() => setQty((q) => Math.max(1, q - 1))}
-                                                className="p-3 text-slate-600 hover:text-slate-900"
+                                                onClick={addToCart}
+                                                disabled={activeStock <= 0 && !product.allow_backorder}
+                                                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shadow-sm disabled:opacity-50 transition-colors whitespace-nowrap"
                                             >
-                                                <Minus className="w-4 h-4" />
+                                                <ShoppingCart className="w-4 h-4 shrink-0" />
+                                                <span>{t('add_to_cart')}</span>
                                             </button>
-                                            <span className="w-10 text-center text-sm font-bold">{qty}</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => setQty((q) => q + 1)}
-                                                className="p-3 text-slate-600 hover:text-slate-900"
-                                            >
-                                                <Plus className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                        <button
-                                            onClick={addToCart}
-                                            disabled={activeStock <= 0 && !product.allow_backorder}
-                                            className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shadow-sm disabled:opacity-50 transition-colors"
-                                        >
-                                            <ShoppingCart className="w-4 h-4" />
-                                            <span>{t('add_to_cart')}</span>
-                                        </button>
-                                    </>
-                                )}
+                                        </>
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!auth.customer) router.get('/login');
+                                            else router.post('/wishlist/toggle', { product_id: product.id }, { preserveScroll: true, preserveState: true, only: ['wishlistIds', 'flash'] });
+                                        }}
+                                        className={`p-3.5 rounded-xl border transition-colors shrink-0 ${
+                                            isWishlisted
+                                                ? 'border-rose-500 bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400'
+                                                : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-rose-500'
+                                        }`}
+                                        aria-label="Toggle wishlist"
+                                    >
+                                        <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-current' : ''}`} />
+                                    </button>
+                                </div>
 
                                 {settings.module_whatsapp && whatsappUrl && (
                                     <a
                                         href={whatsappUrl}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm transition-colors"
+                                        className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm transition-colors"
                                     >
-                                        <MessageCircle className="w-4 h-4" />
+                                        <MessageCircle className="w-4 h-4 shrink-0" />
                                         <span>{t('whatsapp_inquiry')}</span>
                                     </a>
                                 )}
-
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        if (!auth.customer) router.get('/login');
-                                        else router.post('/wishlist/toggle', { product_id: product.id }, { preserveScroll: true, preserveState: true, only: ['wishlistIds', 'flash'] });
-                                    }}
-                                    className={`p-3.5 rounded-xl border transition-colors ${
-                                        isWishlisted ? 'border-rose-500 bg-rose-50 text-rose-600' : 'border-slate-200 text-slate-600 hover:text-rose-500'
-                                    }`}
-                                    aria-label="Toggle wishlist"
-                                >
-                                    <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-current' : ''}`} />
-                                </button>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3 pt-2 text-xs text-slate-500">
-                                <div className="flex items-center gap-2">
-                                    <ShieldCheck className="w-4 h-4 text-teal-600" />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs text-slate-500 dark:text-slate-400">
+                                <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800">
+                                    <ShieldCheck className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
                                     <span>{locale === 'ar' ? 'ضمان الجودة والأصالة' : 'Authentic Quality Guarantee'}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <Truck className="w-4 h-4 text-teal-600" />
+                                <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800">
+                                    <Truck className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
                                     <span>{locale === 'ar' ? 'توصيل سريع وآمن' : 'Fast & Secure Delivery'}</span>
                                 </div>
                             </div>
@@ -377,7 +388,7 @@ export default function ProductDetail({ product, relatedProducts }: ProductDetai
                                 <button
                                     type="submit"
                                     disabled={inquiryForm.processing}
-                                    className="px-5 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800"
+                                    className="px-5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white text-xs font-semibold transition-colors"
                                 >
                                     {t('send_inquiry')}
                                 </button>
@@ -405,7 +416,18 @@ export default function ProductDetail({ product, relatedProducts }: ProductDetai
 
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                         <div className="lg:col-span-7 space-y-4">
-                            {reviews.map((rev) => (
+                            {reviews.length === 0 ? (
+                                <div className="h-full min-h-[190px] rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col items-center justify-center text-center p-6">
+                                    <Star className="w-9 h-9 text-amber-400/70 mb-2" />
+                                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                        {locale === 'ar' ? 'لا توجد تقييمات لهذا المنتج بعد' : 'No reviews for this product yet'}
+                                    </p>
+                                    <p className="text-xs text-slate-500 mt-1">
+                                        {locale === 'ar' ? 'كن أول من يشارك تجربته ويساعد الآخرين في الاختيار.' : 'Be the first to share your experience and help other shoppers.'}
+                                    </p>
+                                </div>
+                            ) : (
+                                reviews.map((rev) => (
                                 <div key={rev.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-1.5">
                                     <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-2">
@@ -426,7 +448,8 @@ export default function ProductDetail({ product, relatedProducts }: ProductDetai
                                     {rev.title && <div className="font-semibold text-sm text-slate-800">{rev.title}</div>}
                                     {rev.comment && <p className="text-xs text-slate-600 leading-relaxed">{rev.comment}</p>}
                                 </div>
-                            ))}
+                            ))
+                            )}
                         </div>
 
                         <div className="lg:col-span-5">
@@ -471,7 +494,7 @@ export default function ProductDetail({ product, relatedProducts }: ProductDetai
                                     <button
                                         type="submit"
                                         disabled={reviewForm.processing}
-                                        className="px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold"
+                                        className="w-full py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold transition-colors"
                                     >
                                         {locale === 'ar' ? 'نشر التقييم' : 'Submit Review'}
                                     </button>
