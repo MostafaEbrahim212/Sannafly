@@ -112,28 +112,28 @@ export default function SystemToolsIndex({ diagnostics, backups }: Props) {
             label: isAr ? 'مسح كاش التطبيق' : 'Clear App Cache',
             desc: 'php artisan cache:clear',
             icon: RefreshCw,
-            style: 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50',
+            style: 'bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700',
         },
         {
             id: 'config_clear',
             label: isAr ? 'مسح كاش الإعدادات' : 'Clear Config Cache',
             desc: 'php artisan config:clear',
             icon: Layers,
-            style: 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50',
+            style: 'bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700',
         },
         {
             id: 'route_clear',
             label: isAr ? 'مسح كاش الروابط' : 'Clear Route Cache',
             desc: 'php artisan route:clear',
             icon: Activity,
-            style: 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50',
+            style: 'bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700',
         },
         {
             id: 'view_clear',
             label: isAr ? 'مسح كاش القوالب' : 'Clear View Cache',
             desc: 'php artisan view:clear',
             icon: RefreshCw,
-            style: 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50',
+            style: 'bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700',
         },
         {
             id: 'optimize',
@@ -147,14 +147,14 @@ export default function SystemToolsIndex({ diagnostics, backups }: Props) {
             label: isAr ? 'ربط مجلد التخزين (Storage Link)' : 'Link Public Storage',
             desc: 'php artisan storage:link',
             icon: FolderSync,
-            style: 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50',
+            style: 'bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700',
         },
         {
             id: 'auth_clear_resets',
             label: isAr ? 'تنظيف رموز استعادة كلمة المرور' : 'Clear Expired Resets',
             desc: 'php artisan auth:clear-resets',
             icon: KeyRound,
-            style: 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50',
+            style: 'bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700',
         },
     ];
 
@@ -348,7 +348,7 @@ export default function SystemToolsIndex({ diagnostics, backups }: Props) {
                                                 <div className="inline-flex items-center gap-2">
                                                     <a
                                                         href={`/admin/system-tools/backup/download?file=${encodeURIComponent(b.name)}`}
-                                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold hover:bg-slate-50"
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
                                                     >
                                                         <Download className="w-3.5 h-3.5" />
                                                         {isAr ? 'تحميل' : 'Download'}
@@ -356,7 +356,7 @@ export default function SystemToolsIndex({ diagnostics, backups }: Props) {
                                                     <button
                                                         type="button"
                                                         onClick={() => deleteBackup(b.name)}
-                                                        className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50"
+                                                        className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50"
                                                         title={isAr ? 'حذف' : 'Delete'}
                                                     >
                                                         <Trash2 className="w-4 h-4" />
@@ -393,7 +393,7 @@ export default function SystemToolsIndex({ diagnostics, backups }: Props) {
                                             value={maintenanceSecret}
                                             onChange={(e) => setMaintenanceSecret(e.target.value)}
                                             placeholder="bypass-secret"
-                                            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-mono"
+                                            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-mono"
                                         />
                                         <button
                                             type="button"
@@ -429,7 +429,7 @@ export default function SystemToolsIndex({ diagnostics, backups }: Props) {
                                 <button
                                     type="button"
                                     onClick={() => runAction('queue_retry')}
-                                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold hover:bg-slate-50"
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
                                 >
                                     <RotateCcw className="w-3.5 h-3.5" />
                                     {isAr ? 'إعادة محاولة المهام الفاشلة' : 'Retry All Failed Jobs'}
@@ -443,7 +443,7 @@ export default function SystemToolsIndex({ diagnostics, backups }: Props) {
                                             isAr ? 'حذف كل المهام الفاشلة؟' : 'Flush all failed jobs?'
                                         )
                                     }
-                                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-rose-200 text-rose-700 text-xs font-semibold hover:bg-rose-50"
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-rose-950/50"
                                 >
                                     <Trash2 className="w-3.5 h-3.5" />
                                     {isAr ? 'حذف المهام الفاشلة' : 'Flush Failed Jobs'}
@@ -478,8 +478,8 @@ export default function SystemToolsIndex({ diagnostics, backups }: Props) {
                                     key={ext}
                                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold border ${
                                         loaded
-                                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                            : 'bg-rose-50 text-rose-800 border-rose-200'
+                                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
+                                            : 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800'
                                     }`}
                                 >
                                     {loaded ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}

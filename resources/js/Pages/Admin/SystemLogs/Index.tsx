@@ -158,7 +158,7 @@ export default function SystemLogsIndex({ files, activeFile, entries, counts, tr
                                     <button
                                         type="button"
                                         onClick={clearFile}
-                                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-semibold hover:bg-amber-100"
+                                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300 text-xs font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/50"
                                     >
                                         {isAr ? 'تفريغ السجل' : 'Clear Log'}
                                     </button>
@@ -264,7 +264,7 @@ export default function SystemLogsIndex({ files, activeFile, entries, counts, tr
                             </form>
 
                             {truncated && (
-                                <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                                <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 dark:text-amber-300 dark:bg-amber-950/40 dark:border-amber-800 rounded-xl px-3 py-2">
                                     <AlertTriangle className="w-4 h-4 shrink-0" />
                                     <span>
                                         {isAr
@@ -325,7 +325,7 @@ export default function SystemLogsIndex({ files, activeFile, entries, counts, tr
                                                         <button
                                                             type="button"
                                                             onClick={() => toggleExpand(entry.id)}
-                                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200"
+                                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                                                         >
                                                             {isOpen ? (
                                                                 <>
