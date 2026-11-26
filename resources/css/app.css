@@ -21,28 +21,34 @@ p, h1, h2, h3, h4, h5, h6, li, td, input[type="text"], textarea {
 
 /* Professional Dark Mode Surface & Control Fallbacks */
 html.dark body {
-    background-color: #0b1120;
-    color: #f1f5f9;
+    background-color: #090d16;
+    color: #e2e8f0;
+}
+
+/* Soft default border color for bare .border / .border-b / .divide-y in dark mode */
+html.dark .border:not([class*="dark:border-"]),
+html.dark .border-t:not([class*="dark:border-"]),
+html.dark .border-b:not([class*="dark:border-"]),
+html.dark .border-s:not([class*="dark:border-"]),
+html.dark .border-e:not([class*="dark:border-"]),
+html.dark .divide-y:not([class*="dark:divide-"]) > *,
+html.dark .divide-x:not([class*="dark:divide-"]) > * {
+    border-color: rgba(51, 65, 85, 0.55);
 }
 
 html.dark .bg-white:not([class*="dark:bg-"]) {
-    background-color: #0f172a;
+    background-color: #111827;
 }
 
-html.dark .bg-white\/95:not([class*="dark:bg-"]),
-html.dark .bg-white\/90:not([class*="dark:bg-"]),
-html.dark .bg-white\/80:not([class*="dark:bg-"]) {
-    background-color: rgba(15, 23, 42, 0.92);
+html.dark [class*="bg-white/"]:not([class*="dark:bg-"]) {
+    background-color: rgba(17, 24, 39, 0.9);
 }
 
-html.dark .bg-slate-50:not([class*="dark:bg-"]),
-html.dark .bg-slate-50\/70:not([class*="dark:bg-"]),
-html.dark .bg-slate-50\/80:not([class*="dark:bg-"]),
-html.dark .bg-slate-50\/40:not([class*="dark:bg-"]) {
-    background-color: rgba(30, 41, 59, 0.65);
+html.dark [class*="bg-slate-50"]:not([class*="hover:"]):not([class*="dark:bg-"]) {
+    background-color: rgba(30, 41, 59, 0.5);
 }
 
-html.dark .bg-slate-100:not([class*="dark:bg-"]) {
+html.dark [class*="bg-slate-100"]:not([class*="hover:"]):not([class*="dark:bg-"]) {
     background-color: #1e293b;
 }
 
@@ -50,38 +56,46 @@ html.dark .bg-slate-200:not([class*="dark:bg-"]) {
     background-color: #334155;
 }
 
-/* Hover surface fallbacks so hovering buttons/rows never flashes bright white in dark mode */
-html.dark .hover\:bg-slate-50:not([class*="dark:hover:bg-"]):hover,
-html.dark .hover\:bg-slate-50\/80:not([class*="dark:hover:bg-"]):hover,
-html.dark .hover\:bg-slate-50\/70:not([class*="dark:hover:bg-"]):hover,
+/* Hover surface fallbacks (all opacity variants) so hovering never flashes light in dark mode */
+html.dark [class*="hover:bg-slate-50"]:not([class*="dark:hover:bg-"]):hover,
 html.dark .hover\:bg-white:not([class*="dark:hover:bg-"]):hover {
-    background-color: #1e293b;
+    background-color: rgba(30, 41, 59, 0.65);
 }
 
-html.dark .hover\:bg-slate-100:not([class*="dark:hover:bg-"]):hover,
+html.dark [class*="hover:bg-slate-100"]:not([class*="dark:hover:bg-"]):hover,
 html.dark .hover\:bg-slate-200:not([class*="dark:hover:bg-"]):hover {
     background-color: #334155;
 }
 
-/* Soft semantic badge & alert surface fallbacks */
-html.dark .bg-teal-50:not([class*="dark:bg-"]) {
+/* Soft semantic badge & alert surface fallbacks (-50 and -100) */
+html.dark .bg-teal-50:not([class*="dark:bg-"]),
+html.dark .bg-teal-100:not([class*="dark:bg-"]) {
     background-color: rgba(13, 148, 136, 0.16);
 }
-html.dark .bg-emerald-50:not([class*="dark:bg-"]) {
+html.dark .bg-emerald-50:not([class*="dark:bg-"]),
+html.dark .bg-emerald-100:not([class*="dark:bg-"]) {
     background-color: rgba(16, 185, 129, 0.16);
 }
-html.dark .bg-amber-50:not([class*="dark:bg-"]) {
+html.dark .bg-amber-50:not([class*="dark:bg-"]),
+html.dark .bg-amber-100:not([class*="dark:bg-"]) {
     background-color: rgba(245, 158, 11, 0.16);
 }
 html.dark .bg-rose-50:not([class*="dark:bg-"]),
-html.dark .bg-red-50:not([class*="dark:bg-"]) {
+html.dark .bg-rose-100:not([class*="dark:bg-"]),
+html.dark .bg-red-50:not([class*="dark:bg-"]),
+html.dark .bg-red-100:not([class*="dark:bg-"]) {
     background-color: rgba(244, 63, 94, 0.16);
 }
 html.dark .bg-sky-50:not([class*="dark:bg-"]),
-html.dark .bg-blue-50:not([class*="dark:bg-"]) {
+html.dark .bg-sky-100:not([class*="dark:bg-"]),
+html.dark .bg-blue-50:not([class*="dark:bg-"]),
+html.dark .bg-blue-100:not([class*="dark:bg-"]) {
     background-color: rgba(14, 165, 233, 0.16);
 }
-html.dark .bg-indigo-50:not([class*="dark:bg-"]) {
+html.dark .bg-indigo-50:not([class*="dark:bg-"]),
+html.dark .bg-indigo-100:not([class*="dark:bg-"]),
+html.dark .bg-purple-50:not([class*="dark:bg-"]),
+html.dark .bg-purple-100:not([class*="dark:bg-"]) {
     background-color: rgba(99, 102, 241, 0.16);
 }
 
@@ -97,21 +111,19 @@ html.dark .hover\:bg-amber-100:not([class*="dark:hover:bg-"]):hover {
     background-color: rgba(245, 158, 11, 0.25);
 }
 
-html.dark .border-slate-200:not([class*="dark:border-"]),
-html.dark .border-slate-200\/80:not([class*="dark:border-"]),
-html.dark .border-slate-200\/70:not([class*="dark:border-"]),
+html.dark [class*="border-slate-200"]:not([class*="dark:border-"]),
 html.dark .border-slate-300:not([class*="dark:border-"]) {
-    border-color: #1e293b;
+    border-color: rgba(51, 65, 85, 0.65);
 }
 
 html.dark .border-slate-100:not([class*="dark:border-"]),
 html.dark .border-slate-50:not([class*="dark:border-"]) {
-    border-color: rgba(30, 41, 59, 0.7);
+    border-color: rgba(51, 65, 85, 0.4);
 }
 
-html.dark .divide-slate-100:not([class*="dark:divide-"]) > :not(:last-child),
-html.dark .divide-slate-200:not([class*="dark:divide-"]) > :not(:last-child) {
-    border-color: #1e293b;
+html.dark .divide-slate-100:not([class*="dark:divide-"]) > *,
+html.dark .divide-slate-200:not([class*="dark:divide-"]) > * {
+    border-color: rgba(51, 65, 85, 0.45);
 }
 
 html.dark .border-teal-200:not([class*="dark:border-"]) {
