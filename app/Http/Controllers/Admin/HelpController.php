@@ -12,4 +12,9 @@ class HelpController extends Controller
     {
         return Inertia::render('Admin/Help/Index');
     }
+
+    public function videos(): Response
+    {
+        return Inertia::render('Admin/Help/Videos');
+    }
 }

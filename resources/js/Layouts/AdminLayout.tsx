@@ -198,6 +198,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                 { label: locale === 'ar' ? 'أدوات الصيانة' : 'System Tools', href: '/admin/system-tools', icon: Wrench, perm: 'settings.manage' },
                 { label: locale === 'ar' ? 'الترخيص' : 'License', href: '/admin/system/license', icon: KeyRound, perm: 'settings.manage' },
                 { label: locale === 'ar' ? 'مركز التعلم والمساعدة' : 'Learning Center', href: '/admin/help', icon: BookOpen, perm: 'dashboard.access' },
+                { label: locale === 'ar' ? 'مكتبة الفيديو التعليمية' : 'Video Library', href: '/admin/help/videos', icon: Sparkles, perm: 'dashboard.access' },
             ],
         },
     ];

@@ -27,4 +27,9 @@ it('renders the interactive Learning Center at /admin/help for authorized staff'
         ->get('/admin/help')
         ->assertOk()
         ->assertInertia(fn ($page) => $page->component('Admin/Help/Index'));
+
+    $this->actingAs($admin, 'web')
+        ->get('/admin/help/videos')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('Admin/Help/Videos'));
 });

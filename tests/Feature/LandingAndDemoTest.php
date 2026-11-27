@@ -119,3 +119,43 @@ it('blocks demo reset when demo mode is disabled and works in AR/EN locales', fu
     $this->get('/locale/en')->assertRedirect();
     $this->get('/demo')->assertOk()->assertInertia(fn ($page) => $page->where('locale', 'en'));
 });
+
+it('renders /demo/presentation and exposes presenterNotes ONLY to real admin presenters', function (): void {
+    $this->seed(RbacSeeder::class);
+    app(DemoModeService::class)->setEnabled(true);
+
+    // Public visitor: presenterNotes must be null
+    $this->get('/demo/presentation')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Demo/Presentation')
+            ->where('isPresenter', false)
+            ->where('presenterNotes', null)
+        );
+
+    // Demo Reviewer: presenterNotes must STILL be null
+    $this->post('/demo/login-admin')->assertRedirect('/admin');
+    $reviewer = auth('web')->user();
+    $this->actingAs($reviewer, 'web')
+        ->get('/demo/presentation')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Demo/Presentation')
+            ->where('isPresenter', false)
+            ->where('presenterNotes', null)
+        );
+
+    // Real Super Admin presenter: presenterNotes must be populated
+    $admin = User::factory()->create(['status' => 'active']);
+    $superAdminRole = Role::where('slug', 'super-admin')->firstOrFail();
+    $admin->roles()->sync([$superAdminRole->id]);
+
+    $this->actingAs($admin, 'web')
+        ->get('/demo/presentation')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Demo/Presentation')
+            ->where('isPresenter', true)
+            ->has('presenterNotes.opening')
+        );
+});

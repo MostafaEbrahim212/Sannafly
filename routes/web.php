@@ -62,6 +62,7 @@ Route::get('/product', fn () => Inertia::render('Landing/Index', [
     'product' => ['name' => config('product.name'), 'version' => config('product.version')],
 ]))->name('product.landing');
 Route::get('/demo', [DemoModeController::class, 'hub'])->name('demo.hub');
+Route::get('/demo/presentation', [DemoModeController::class, 'presentation'])->name('demo.presentation');
 Route::post('/demo/login-admin', [DemoModeController::class, 'loginAsDemo'])->middleware('throttle:10,1')->name('demo.login-admin');
 Route::get('/catalog', [StorefrontController::class, 'catalog'])->name('catalog');
 Route::get('/products/{slug}', [StorefrontController::class, 'show'])->name('products.show');
@@ -138,6 +139,7 @@ Route::prefix('admin')->group(function () {
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permission:dashboard.access'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/help', [HelpController::class, 'index'])->name('help.index');
+    Route::get('/help/videos', [HelpController::class, 'videos'])->name('help.videos');
 
     // Admin Notifications & Realtime Feed
     Route::get('/notifications', [AdminNotificationController::class, 'index'])->name('notifications.index');
