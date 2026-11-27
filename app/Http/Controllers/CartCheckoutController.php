@@ -12,6 +12,7 @@ use App\Models\Product;
 use App\Models\ProductVariation;
 use App\Models\ShippingZone;
 use App\Services\AuditLogger;
+use App\Services\DemoModeService;
 use App\Services\ImageService;
 use App\Services\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
@@ -368,6 +369,10 @@ class CartCheckoutController extends Controller
         $confirmationUrl = URL::temporarySignedRoute('orders.confirmation', now()->addHours(24), ['orderNumber' => $order->order_number]);
 
         $method = $order->paymentMethod;
+        if (app(DemoModeService::class)->isEnabled() && $method && in_array($method->driver, ['myfatoorah', 'fawry', 'paymob', 'kashier'], true)) {
+            return redirect($confirmationUrl)->with('success', __('Demo Mode: Order placed in simulated preview mode (no real payment transaction).'));
+        }
+
         $gateway = $method ? $this->gatewayManager->resolve($method) : null;
 
         if ($gateway && $method) {
@@ -449,6 +454,10 @@ class CartCheckoutController extends Controller
 
         $order = $order->fresh(['paymentMethod']) ?? $order;
         $method = $order->paymentMethod;
+        if (app(DemoModeService::class)->isEnabled() && $method && in_array($method->driver, ['myfatoorah', 'fawry', 'paymob', 'kashier'], true)) {
+            return redirect($confirmationUrl)->with('success', __('Demo Mode: Order placed in simulated preview mode (no real payment transaction).'));
+        }
+
         $gateway = $method ? $this->gatewayManager->resolve($method) : null;
 
         if (! $gateway || ! $method) {

@@ -44,6 +44,7 @@ use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\WishlistController;
 use App\Http\Middleware\EnsureNotInstalled;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 // Guided Web Installer (automatically locked once installed)
 Route::prefix('install')->name('install.')->middleware([EnsureNotInstalled::class, 'throttle:30,1'])->group(function () {
@@ -54,8 +55,13 @@ Route::prefix('install')->name('install.')->middleware([EnsureNotInstalled::clas
     Route::post('/owner', [InstallerController::class, 'createOwner'])->name('owner');
 });
 
-// Public Storefront
+// Public Storefront, Product Landing Page & Demo Hub
 Route::get('/', [StorefrontController::class, 'home'])->name('home');
+Route::get('/product', fn () => Inertia::render('Landing/Index', [
+    'product' => ['name' => config('product.name'), 'version' => config('product.version')],
+]))->name('product.landing');
+Route::get('/demo', [DemoModeController::class, 'hub'])->name('demo.hub');
+Route::post('/demo/login-admin', [DemoModeController::class, 'loginAsDemo'])->middleware('throttle:10,1')->name('demo.login-admin');
 Route::get('/catalog', [StorefrontController::class, 'catalog'])->name('catalog');
 Route::get('/products/{slug}', [StorefrontController::class, 'show'])->name('products.show');
 Route::post('/inquiries', [StorefrontController::class, 'submitInquiry'])->middleware('throttle:10,1')->name('inquiries.store');
@@ -150,7 +156,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permissio
     Route::post('/products', [ProductController::class, 'store'])->middleware('permission:products.create')->name('products.store');
     Route::get('/products/{product}/edit', [ProductController::class, 'edit'])->middleware('permission:products.edit')->name('products.edit');
     Route::match(['put', 'post'], '/products/{product}', [ProductController::class, 'update'])->middleware('permission:products.edit')->name('products.update');
-    Route::delete('/products/{product}', [ProductController::class, 'destroy'])->middleware('permission:products.delete')->name('products.destroy');
+    Route::delete('/products/{product}', [ProductController::class, 'destroy'])->middleware(['permission:products.delete', 'demo.guard'])->name('products.destroy');
     Route::post('/products/bulk', [ProductController::class, 'bulkAction'])->middleware('permission:products.edit')->name('products.bulk');
     Route::post('/products/{product}/variations/generate', [ProductController::class, 'generateVariations'])->middleware('permission:products.edit')->name('products.variations.generate');
     Route::post('/products/{product}/images/reorder', [ProductController::class, 'reorderImages'])->middleware('permission:products.edit')->name('products.images.reorder');
@@ -161,12 +167,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permissio
     Route::get('/categories', [CategoryController::class, 'index'])->middleware('permission:categories.view')->name('categories.index');
     Route::post('/categories', [CategoryController::class, 'store'])->middleware('permission:categories.manage')->name('categories.store');
     Route::match(['put', 'post'], '/categories/{category}', [CategoryController::class, 'update'])->middleware('permission:categories.manage')->name('categories.update');
-    Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->middleware('permission:categories.manage')->name('categories.destroy');
+    Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->middleware(['permission:categories.manage', 'demo.guard'])->name('categories.destroy');
 
     Route::get('/brands', [BrandController::class, 'index'])->middleware('permission:brands.manage')->name('brands.index');
     Route::post('/brands', [BrandController::class, 'store'])->middleware('permission:brands.manage')->name('brands.store');
     Route::match(['put', 'post'], '/brands/{brand}', [BrandController::class, 'update'])->middleware('permission:brands.manage')->name('brands.update');
-    Route::delete('/brands/{brand}', [BrandController::class, 'destroy'])->middleware('permission:brands.manage')->name('brands.destroy');
+    Route::delete('/brands/{brand}', [BrandController::class, 'destroy'])->middleware(['permission:brands.manage', 'demo.guard'])->name('brands.destroy');
 
     Route::get('/attributes', [AttributeController::class, 'index'])->middleware('permission:products.edit')->name('attributes.index');
     Route::post('/attributes', [AttributeController::class, 'store'])->middleware('permission:products.edit')->name('attributes.store');
@@ -243,8 +249,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permissio
     // System Logs & Developer/Ops Tools
     Route::get('/system-logs', [SystemLogController::class, 'index'])->middleware('permission:audit_logs.view')->name('system-logs.index');
     Route::get('/system-logs/download', [SystemLogController::class, 'download'])->middleware('permission:audit_logs.view')->name('system-logs.download');
-    Route::post('/system-logs/clear', [SystemLogController::class, 'clear'])->middleware('permission:settings.manage')->name('system-logs.clear');
-    Route::delete('/system-logs', [SystemLogController::class, 'destroy'])->middleware('permission:settings.manage')->name('system-logs.destroy');
+    Route::post('/system-logs/clear', [SystemLogController::class, 'clear'])->middleware(['permission:settings.manage', 'demo.guard'])->name('system-logs.clear');
+    Route::delete('/system-logs', [SystemLogController::class, 'destroy'])->middleware(['permission:settings.manage', 'demo.guard'])->name('system-logs.destroy');
 
     Route::get('/system-tools', [SystemToolsController::class, 'index'])->middleware('permission:settings.manage')->name('system-tools.index');
     Route::post('/system-tools/action', [SystemToolsController::class, 'runAction'])->middleware(['permission:settings.manage', 'demo.guard'])->name('system-tools.action');
@@ -261,11 +267,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permissio
 
     // Settings, Customizer, Payment Methods
     Route::get('/settings', [SettingsController::class, 'index'])->middleware('permission:settings.view')->name('settings.index');
-    Route::post('/settings', [SettingsController::class, 'update'])->middleware('permission:settings.manage')->name('settings.update');
+    Route::post('/settings', [SettingsController::class, 'update'])->middleware(['permission:settings.manage', 'demo.guard'])->name('settings.update');
     Route::get('/customizer', [SettingsController::class, 'customizer'])->middleware('permission:settings.manage')->name('customizer.index');
 
     Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->middleware('permission:payments.manage')->name('payment-methods.index');
-    Route::put('/payment-methods/{paymentMethod}', [PaymentMethodController::class, 'update'])->middleware('permission:payments.manage')->name('payment-methods.update');
+    Route::put('/payment-methods/{paymentMethod}', [PaymentMethodController::class, 'update'])->middleware(['permission:payments.manage', 'demo.guard'])->name('payment-methods.update');
 
     // Coupons & Shipping Zones
     Route::get('/coupons', [CouponController::class, 'index'])->middleware('permission:orders.manage')->name('coupons.index');

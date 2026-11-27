@@ -1,11 +1,13 @@
 import React from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { Lock } from 'lucide-react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Lock, ShieldCheck } from 'lucide-react';
 import BrandLogo from '@/Components/BrandLogo';
 import { useTranslation } from '@/lib/i18n';
+import type { PageProps } from '@/types';
 
 export default function Login({ isAdminLogin = false }: { isAdminLogin?: boolean }) {
     const { t, dir, locale } = useTranslation();
+    const demoMode = Boolean((usePage<PageProps>().props as any).demoMode);
     const { data, setData, post, processing, errors } = useForm({
         email: '',
         password: '',
@@ -32,6 +34,22 @@ export default function Login({ isAdminLogin = false }: { isAdminLogin?: boolean
                     <p className="text-xs text-slate-500 text-center mb-6">
                         {locale === 'ar' ? 'منطقة مخصصة للمشرفين والموظفين فقط' : 'Restricted to authorized administrators and staff'}
                     </p>
+                )}
+
+                {isAdminLogin && demoMode && (
+                    <div className="mb-4 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
+                        <div className="font-bold flex items-center gap-1.5">
+                            <ShieldCheck className="w-4 h-4 text-amber-700" />
+                            <span>{locale === 'ar' ? 'وضع العرض التجريبي مفعّل' : 'Demo Mode Active'}</span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => router.post('/demo/login-admin')}
+                            className="w-full py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                        >
+                            {locale === 'ar' ? 'دخول فوري كـ Demo Reviewer' : 'One-Click Demo Reviewer Login'}
+                        </button>
+                    </div>
                 )}
 
                 <form onSubmit={submit} className="space-y-4 mt-4">
