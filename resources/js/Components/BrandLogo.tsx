@@ -5,10 +5,11 @@ interface BrandLogoProps {
     variant?: 'light' | 'dark';
     showText?: boolean;
     customName?: string;
+    logoUrl?: string | null;
     size?: 'sm' | 'md' | 'lg';
 }
 
-export default function BrandLogo({ variant = 'light', showText = true, customName, size = 'md' }: BrandLogoProps) {
+export default function BrandLogo({ variant = 'light', showText = true, customName, logoUrl, size = 'md' }: BrandLogoProps) {
     const { locale } = useTranslation();
     const isDarkBg = variant === 'dark';
 
@@ -19,7 +20,20 @@ export default function BrandLogo({ variant = 'light', showText = true, customNa
     const bar2 = isDarkBg ? '#2DD4BF' : '#109684';
     const bar3 = isDarkBg ? '#E9F0ED' : '#0A5C57';
 
-    const displayName = customName || (locale === 'ar' ? 'صنّفلي' : 'Sannafly');
+    const displayName = customName || (locale === 'ar' ? 'متجري' : 'MyStore');
+
+    if (logoUrl) {
+        return (
+            <span className="inline-flex items-center gap-2.5 select-none">
+                <img src={logoUrl} alt={displayName} className={`${iconSize} object-contain rounded-lg shrink-0`} />
+                {showText && (
+                    <span className={`font-extrabold tracking-tight ${textSize} ${isDarkBg ? 'text-white' : 'text-[#0A5C57]'}`}>
+                        {displayName}
+                    </span>
+                )}
+            </span>
+        );
+    }
 
     return (
         <span className="inline-flex items-center gap-2.5 select-none">

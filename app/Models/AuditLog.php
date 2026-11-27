@@ -25,12 +25,15 @@ class AuditLog extends Model
         'user_id',
         'actor_name',
         'action',
+        'event_type',
+        'result',
         'resource_type',
         'resource_id',
         'old_values',
         'new_values',
         'ip_address',
         'user_agent',
+        'request_id',
         'created_at',
     ];
 

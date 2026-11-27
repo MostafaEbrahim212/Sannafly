@@ -130,6 +130,61 @@ class DatabaseBackupService
     }
 
     /**
+     * Validate and restore a SQL backup file into the active database connection.
+     */
+    public function restoreSqlBackup(string $filename): int
+    {
+        $path = $this->resolvePath($filename);
+        if (strtolower(pathinfo($path, PATHINFO_EXTENSION)) !== 'sql') {
+            throw new InvalidArgumentException('Only .sql backup files can be restored directly.');
+        }
+
+        $sql = (string) file_get_contents($path);
+        if (trim($sql) === '' || (! str_contains($sql, 'INSERT INTO') && ! str_contains($sql, 'CREATE TABLE'))) {
+            throw new InvalidArgumentException('Backup file failed integrity validation (empty or invalid SQL dump).');
+        }
+
+        $connection = DB::connection();
+        $driver = $connection->getDriverName();
+        $pdo = $connection->getPdo();
+
+        $cleanSql = implode("\n", array_filter(
+            preg_split('/\r?\n/', $sql) ?: [],
+            static fn (string $line): bool => ! str_starts_with(ltrim($line), '--')
+        ));
+
+        $statements = array_filter(
+            array_map('trim', preg_split('/;\s*(?:\r?\n|$)/', $cleanSql) ?: []),
+            static fn (string $stmt): bool => $stmt !== ''
+        );
+
+        if ($driver === 'mysql') {
+            $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
+        } elseif ($driver === 'sqlite') {
+            $pdo->exec('PRAGMA foreign_keys=OFF');
+        }
+
+        $executed = 0;
+        try {
+            foreach ($statements as $statement) {
+                if (preg_match('/^(SET FOREIGN_KEY_CHECKS|DROP TABLE|CREATE TABLE|INSERT INTO)\b/i', $statement) !== 1) {
+                    continue;
+                }
+                $pdo->exec($statement);
+                $executed++;
+            }
+        } finally {
+            if ($driver === 'mysql') {
+                $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
+            } elseif ($driver === 'sqlite') {
+                $pdo->exec('PRAGMA foreign_keys=ON');
+            }
+        }
+
+        return $executed;
+    }
+
+    /**
      * Generate a portable SQL dump using PDO so it works on both MySQL and SQLite.
      */
     private function generateSqlDump(): string
@@ -139,7 +194,7 @@ class DatabaseBackupService
         $pdo = $connection->getPdo();
 
         $lines = [
-            '-- Sannafly / CatalogFlow Database Backup',
+            '-- '.config('product.name', 'CatalogFlow Commerce').' Database Backup',
             '-- Generated at: '.now()->toIso8601String(),
             '-- Driver: '.$driver,
             '',

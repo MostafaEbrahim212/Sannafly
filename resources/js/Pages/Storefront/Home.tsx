@@ -38,7 +38,7 @@ export default function Home({ featuredProducts, latestProducts, categories, bra
     ];
 
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const siteName = localized(settings.site_name || 'Sannafly', settings.site_name_ar);
+    const siteName = localized(settings.site_name || 'MyStore', settings.site_name_ar);
     const homeSchemas = [
         {
             '@context': 'https://schema.org',
@@ -184,99 +184,129 @@ export default function Home({ featuredProducts, latestProducts, categories, bra
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 space-y-16">
-                {settings.show_categories !== false && categories.length > 0 && (
-                    <section className="animate-fade-up">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h2 className="text-2xl font-extrabold tracking-tight">{t('categories')}</h2>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                    {locale === 'ar' ? 'تصفح حسب القسم للوصول الأسرع لمنتجاتك' : 'Explore curated collections by category'}
-                                </p>
-                            </div>
-                            <Link href="/catalog" className="text-xs font-bold px-3.5 py-2 rounded-xl bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors">
-                                {t('view_all')}
-                            </Link>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {categories.map((cat) => (
-                                <Link
-                                    key={cat.id}
-                                    href={`/catalog?category=${cat.slug}`}
-                                    className="group p-5 rounded-2xl border border-slate-200/80 bg-white hover:shadow-lg hover:-translate-y-0.5 hover:border-teal-500/40 transition-all flex items-center justify-between gap-3"
-                                >
-                                    <div className="flex items-center gap-3.5 min-w-0">
-                                        <div className="w-11 h-11 rounded-xl bg-teal-50 text-teal-700 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
-                                            <FolderKanban className="w-5 h-5" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <div className="font-bold text-slate-900 group-hover:text-teal-700 transition-colors truncate">
-                                                {localized(cat.name, cat.name_ar)}
-                                            </div>
-                                            <div className="text-xs text-slate-500 mt-0.5">
-                                                {cat.products_count ?? 0} {t('products')}
-                                            </div>
-                                        </div>
+                {(() => {
+                    const order: string[] = Array.isArray((settings as any).homepage_sections_order)
+                        ? (settings as any).homepage_sections_order
+                        : ['categories', 'featured', 'banner', 'latest', 'brands'];
+
+                    const sectionsMap: Record<string, React.ReactNode> = {
+                        categories: settings.show_categories !== false && categories.length > 0 && (
+                            <section key="categories" className="animate-fade-up">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div>
+                                        <h2 className="text-2xl font-extrabold tracking-tight">{t('categories')}</h2>
+                                        <p className="text-xs text-slate-500 mt-0.5">
+                                            {locale === 'ar' ? 'تصفح حسب القسم للوصول الأسرع لمنتجاتك' : 'Explore curated collections by category'}
+                                        </p>
                                     </div>
-                                    <ArrowRight className={`w-4 h-4 text-slate-300 group-hover:text-teal-600 shrink-0 transition-transform group-hover:translate-x-0.5 ${dir === 'rtl' ? 'rotate-180 group-hover:-translate-x-0.5' : ''}`} />
-                                </Link>
-                            ))}
-                        </div>
-                    </section>
-                )}
-
-                {settings.show_featured !== false && featuredProducts.length > 0 && (
-                    <section className="animate-fade-up">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h2 className="text-2xl font-extrabold tracking-tight">{t('featured_products')}</h2>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                    {locale === 'ar' ? 'أفضل المنتجات المختارة لك بعناية' : 'Hand-picked highlights from our catalog'}
-                                </p>
-                            </div>
-                            <Link href="/catalog?featured=1" className="text-xs font-bold px-3.5 py-2 rounded-xl bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors">
-                                {t('browse_all')}
-                            </Link>
-                        </div>
-                        <div className={`grid ${gridClass} gap-6`}>
-                            {featuredProducts.map((product) => (
-                                <ProductCard key={product.id} product={product} />
-                            ))}
-                        </div>
-                    </section>
-                )}
-
-                {latestProducts.length > 0 && (
-                    <section className="animate-fade-up">
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-2xl font-extrabold tracking-tight">{t('latest_products')}</h2>
-                            <Link href="/catalog" className="text-xs font-bold px-3.5 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
-                                {t('view_all')}
-                            </Link>
-                        </div>
-                        <div className={`grid ${gridClass} gap-6`}>
-                            {latestProducts.map((product) => (
-                                <ProductCard key={product.id} product={product} />
-                            ))}
-                        </div>
-                    </section>
-                )}
-
-                {settings.show_brands !== false && brands.length > 0 && (
-                    <section className="pt-6 border-t border-slate-200/80">
-                        <h2 className="text-lg font-bold mb-4 text-slate-700">{t('brands')}</h2>
-                        <div className="flex flex-wrap gap-3">
-                            {brands.map((b) => (
+                                    <Link href="/catalog" className="text-xs font-bold px-3.5 py-2 rounded-xl bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors">
+                                        {t('view_all')}
+                                    </Link>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    {categories.map((cat) => (
+                                        <Link
+                                            key={cat.id}
+                                            href={`/catalog?category=${cat.slug}`}
+                                            className="group p-5 rounded-2xl border border-slate-200/80 bg-white hover:shadow-lg hover:-translate-y-0.5 hover:border-teal-500/40 transition-all flex items-center justify-between gap-3"
+                                        >
+                                            <div className="flex items-center gap-3.5 min-w-0">
+                                                <div className="w-11 h-11 rounded-xl bg-teal-50 text-teal-700 group-hover:bg-teal-700 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                                                    <FolderKanban className="w-5 h-5" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="font-bold text-slate-900 group-hover:text-teal-700 transition-colors truncate">
+                                                        {localized(cat.name, cat.name_ar)}
+                                                    </div>
+                                                    <div className="text-xs text-slate-500 mt-0.5">
+                                                        {cat.products_count ?? 0} {t('products')}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <ArrowRight className={`w-4 h-4 text-slate-300 group-hover:text-teal-600 shrink-0 transition-transform group-hover:translate-x-0.5 ${dir === 'rtl' ? 'rotate-180 group-hover:-translate-x-0.5' : ''}`} />
+                                        </Link>
+                                    ))}
+                                </div>
+                            </section>
+                        ),
+                        featured: settings.show_featured !== false && featuredProducts.length > 0 && (
+                            <section key="featured" className="animate-fade-up">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div>
+                                        <h2 className="text-2xl font-extrabold tracking-tight">{t('featured_products')}</h2>
+                                        <p className="text-xs text-slate-500 mt-0.5">
+                                            {locale === 'ar' ? 'أفضل المنتجات المختارة لك بعناية' : 'Hand-picked highlights from our catalog'}
+                                        </p>
+                                    </div>
+                                    <Link href="/catalog?featured=1" className="text-xs font-bold px-3.5 py-2 rounded-xl bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors">
+                                        {t('browse_all')}
+                                    </Link>
+                                </div>
+                                <div className={`grid ${gridClass} gap-6`}>
+                                    {featuredProducts.map((product) => (
+                                        <ProductCard key={product.id} product={product} />
+                                    ))}
+                                </div>
+                            </section>
+                        ),
+                        banner: Boolean((settings as any).show_banner) && (
+                            <section
+                                key="banner"
+                                className="rounded-3xl p-8 sm:p-10 text-white flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm"
+                                style={{ background: `linear-gradient(135deg, ${primaryColor} 0%, #0f172a 100%)` }}
+                            >
+                                <div>
+                                    <h2 className="text-2xl font-extrabold">
+                                        {localized((settings as any).banner_title, (settings as any).banner_title_ar)}
+                                    </h2>
+                                    <p className="text-sm text-white/80 mt-1">
+                                        {localized((settings as any).banner_subtitle, (settings as any).banner_subtitle_ar)}
+                                    </p>
+                                </div>
                                 <Link
-                                    key={b.id}
-                                    href={`/catalog?brand=${b.slug}`}
-                                    className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:shadow-xs hover:border-teal-500/40 transition-all"
+                                    href={(settings as any).banner_cta_link || '/catalog'}
+                                    className="px-6 py-3 rounded-xl font-bold text-sm text-slate-950 shrink-0"
+                                    style={{ backgroundColor: accentColor }}
                                 >
-                                    {localized(b.name, b.name_ar)}
+                                    {localized((settings as any).banner_cta_text, (settings as any).banner_cta_text_ar) || t('browse_all')}
                                 </Link>
-                            ))}
-                        </div>
-                    </section>
-                )}
+                            </section>
+                        ),
+                        latest: (settings as any).show_latest !== false && latestProducts.length > 0 && (
+                            <section key="latest" className="animate-fade-up">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-2xl font-extrabold tracking-tight">{t('latest_products')}</h2>
+                                    <Link href="/catalog" className="text-xs font-bold px-3.5 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
+                                        {t('view_all')}
+                                    </Link>
+                                </div>
+                                <div className={`grid ${gridClass} gap-6`}>
+                                    {latestProducts.map((product) => (
+                                        <ProductCard key={product.id} product={product} />
+                                    ))}
+                                </div>
+                            </section>
+                        ),
+                        brands: settings.show_brands !== false && brands.length > 0 && (
+                            <section key="brands" className="pt-6 border-t border-slate-200/80">
+                                <h2 className="text-lg font-bold mb-4 text-slate-700">{t('brands')}</h2>
+                                <div className="flex flex-wrap gap-3">
+                                    {brands.map((b) => (
+                                        <Link
+                                            key={b.id}
+                                            href={`/catalog?brand=${b.slug}`}
+                                            className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:shadow-xs hover:border-teal-500/40 transition-all"
+                                        >
+                                            {localized(b.name, b.name_ar)}
+                                        </Link>
+                                    ))}
+                                </div>
+                            </section>
+                        ),
+                    };
+
+                    return order.filter((k) => k !== 'hero').map((key) => sectionsMap[key] ?? null);
+                })()}
             </div>
         </StorefrontLayout>
     );

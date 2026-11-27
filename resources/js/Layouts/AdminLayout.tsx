@@ -9,20 +9,25 @@ import {
     ChevronLeft,
     ChevronRight,
     CreditCard,
+    Database,
     ExternalLink,
+    FileCode2,
     FileSpreadsheet,
     FileText,
     FolderTree,
     Globe,
+    KeyRound,
     LayoutDashboard,
     LogOut,
     Menu,
     MessageSquare,
     Package,
     Paintbrush,
+    Palette,
     Percent,
     Plus,
     Printer,
+    Rocket,
     Search,
     Settings,
     Shield,
@@ -172,10 +177,16 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                 { label: t('users'), href: '/admin/users', icon: Users, perm: 'users.view' },
                 { label: t('roles'), href: '/admin/roles', icon: Shield, perm: 'users.manage_roles' },
                 { label: locale === 'ar' ? 'الإشعارات' : 'Notifications', href: '/admin/notifications', icon: Bell, perm: 'dashboard.access' },
-                { label: t('audit_logs'), href: '/admin/audit-logs', icon: Activity, perm: 'audit_logs.view' },
+                { label: t('audit_logs'), href: '/admin/system/audit-logs', icon: Activity, perm: 'audit_logs.view' },
                 { label: locale === 'ar' ? 'سجلات النظام' : 'System Logs', href: '/admin/system-logs', icon: FileText, perm: 'audit_logs.view' },
-                { label: locale === 'ar' ? 'أدوات الصيانة والباك اب' : 'System Tools', href: '/admin/system-tools', icon: Wrench, perm: 'settings.manage' },
+                { label: locale === 'ar' ? 'صحة النظام' : 'System Health', href: '/admin/system/health', icon: Activity, perm: 'settings.manage' },
+                { label: locale === 'ar' ? 'النسخ الاحتياطي' : 'Backups & Restore', href: '/admin/system/backups', icon: Database, perm: 'settings.manage' },
+                { label: locale === 'ar' ? 'التحديثات' : 'System Updates', href: '/admin/system/updates', icon: Rocket, perm: 'settings.manage' },
+                { label: locale === 'ar' ? 'تقرير الدعم' : 'Support Export', href: '/admin/system/support', icon: FileCode2, perm: 'settings.manage' },
+                { label: locale === 'ar' ? 'أدوات الصيانة' : 'System Tools', href: '/admin/system-tools', icon: Wrench, perm: 'settings.manage' },
+                { label: locale === 'ar' ? 'الترخيص' : 'License', href: '/admin/system/license', icon: KeyRound, perm: 'settings.manage' },
                 { label: t('customizer'), href: '/admin/customizer', icon: Paintbrush, perm: 'settings.manage' },
+                { label: locale === 'ar' ? 'قوالب الثيم' : 'Theme Presets', href: '/admin/customizer/themes', icon: Palette, perm: 'settings.manage' },
                 { label: locale === 'ar' ? 'السياسات والصفحات' : 'Policies & Pages', href: '/admin/policies', icon: ShieldCheck, perm: 'settings.manage' },
                 { label: t('settings'), href: '/admin/settings', icon: Settings, perm: 'settings.view' },
             ],
@@ -210,7 +221,12 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                 {/* Brand Header + Collapse Button */}
                 <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800/80 shrink-0">
                     <Link href="/admin" className="min-w-0">
-                        <BrandLogo variant="dark" showText={!collapsed} customName={settings.site_name || 'Sannafly'} />
+                        <BrandLogo
+                            variant="dark"
+                            showText={!collapsed}
+                            customName={settings.site_name || 'MyStore'}
+                            logoUrl={settings.brand_logo_dark || settings.brand_logo || null}
+                        />
                     </Link>
 
                     <button
@@ -433,6 +449,22 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                 </header>
 
                 <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
+                    {pageProps.demoMode && (
+                        <div className="no-print mb-5 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs font-semibold flex flex-wrap items-center justify-between gap-2">
+                            <span>
+                                {locale === 'ar'
+                                    ? 'وضع العرض التجريبي (Demo Mode) مفعّل — العمليات الحساسة محمية ومقيدة.'
+                                    : 'Demo Mode Active — Destructive and system-critical operations are restricted.'}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => router.post('/admin/system/demo/reset')}
+                                className="px-3 py-1 rounded-lg bg-amber-600 text-white hover:bg-amber-700"
+                            >
+                                {locale === 'ar' ? 'إعادة ضبط البيانات التجريبية' : 'Reset Demo Data'}
+                            </button>
+                        </div>
+                    )}
                     {flash?.success && (
                         <div className="no-print mb-5 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-sm font-medium shadow-xs">
                             {flash.success}

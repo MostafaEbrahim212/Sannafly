@@ -46,6 +46,24 @@ class RbacSeeder extends Seeder
             // Reports & Audit
             ['slug' => 'reports.view', 'name' => 'View Reports', 'group' => 'reports'],
             ['slug' => 'audit_logs.view', 'name' => 'View Audit Logs', 'group' => 'security'],
+            ['slug' => 'system.audit_logs.view', 'name' => 'View System Audit Logs', 'group' => 'system'],
+            ['slug' => 'system.audit_logs.export', 'name' => 'Export Audit Logs', 'group' => 'system'],
+            // System Health, Backups, Updates, License, Support, Demo, Themes
+            ['slug' => 'system.health.view', 'name' => 'View System Health', 'group' => 'system'],
+            ['slug' => 'system.health.run', 'name' => 'Run System Health Checks', 'group' => 'system'],
+            ['slug' => 'system.backups.view', 'name' => 'View System Backups', 'group' => 'system'],
+            ['slug' => 'system.backups.create', 'name' => 'Create System Backups', 'group' => 'system'],
+            ['slug' => 'system.backups.download', 'name' => 'Download System Backups', 'group' => 'system'],
+            ['slug' => 'system.backups.delete', 'name' => 'Delete System Backups', 'group' => 'system'],
+            ['slug' => 'system.backups.restore', 'name' => 'Restore System Backups', 'group' => 'system'],
+            ['slug' => 'system.updates.view', 'name' => 'View System Updates', 'group' => 'system'],
+            ['slug' => 'system.updates.execute', 'name' => 'Execute System Updates', 'group' => 'system'],
+            ['slug' => 'system.license.view', 'name' => 'View License Information', 'group' => 'system'],
+            ['slug' => 'system.license.manage', 'name' => 'Manage Commercial License', 'group' => 'system'],
+            ['slug' => 'system.support.export', 'name' => 'Export Support Diagnostics', 'group' => 'system'],
+            ['slug' => 'system.demo.manage', 'name' => 'Manage Demo Mode', 'group' => 'system'],
+            ['slug' => 'customizer.themes.view', 'name' => 'View Theme Presets', 'group' => 'settings'],
+            ['slug' => 'customizer.themes.manage', 'name' => 'Manage Theme Presets', 'group' => 'settings'],
             // Dashboard access
             ['slug' => 'dashboard.access', 'name' => 'Access Admin Dashboard', 'group' => 'dashboard'],
         ];
@@ -112,20 +130,22 @@ class RbacSeeder extends Seeder
             );
         }
 
-        $admin = User::query()->firstOrCreate(
-            ['email' => 'admin@Sannafly.test'],
-            [
-                'name' => 'Super Administrator',
-                'phone' => '+10000000000',
-                'status' => 'active',
-                'email_verified_at' => now(),
-                'password' => Hash::make('Password123!'),
-            ]
-        );
+        if (app()->runningUnitTests() && ! request()->is('install*')) {
+            $admin = User::query()->firstOrCreate(
+                ['email' => 'admin@Sannafly.test'],
+                [
+                    'name' => 'Super Administrator',
+                    'phone' => '+10000000000',
+                    'status' => 'active',
+                    'email_verified_at' => now(),
+                    'password' => Hash::make('Password123!'),
+                ]
+            );
 
-        $superAdminRole = Role::query()->where('slug', 'super-admin')->first();
-        if ($superAdminRole) {
-            $admin->roles()->syncWithoutDetaching([$superAdminRole->id]);
+            $superAdminRole = Role::query()->where('slug', 'super-admin')->first();
+            if ($superAdminRole) {
+                $admin->roles()->syncWithoutDetaching([$superAdminRole->id]);
+            }
         }
     }
 }

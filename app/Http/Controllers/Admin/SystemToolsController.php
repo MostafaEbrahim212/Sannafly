@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Services\AuditLogger;
 use App\Services\DatabaseBackupService;
+use App\Services\InstallerService;
+use App\Services\LicenseService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -130,7 +133,7 @@ class SystemToolsController extends Controller
                     $message = 'All failed jobs flushed.';
                     break;
                 case 'maintenance_down':
-                    $secret = $validated['secret'] ?: 'sannafly-bypass';
+                    $secret = $validated['secret'] ?: 'maintenance-bypass';
                     Artisan::call('down', ['--secret' => $secret]);
                     $message = "Maintenance mode enabled. Bypass URL: /{$secret}";
                     break;
@@ -182,5 +185,58 @@ class SystemToolsController extends Controller
         $this->audit->log('system.backup_deleted', null, null, null, ['file' => $filename]);
 
         return back()->with('success', "Backup [{$filename}] deleted.");
+    }
+
+    public function restoreBackup(Request $request): RedirectResponse
+    {
+        $filename = $request->string('file')->toString();
+        try {
+            $executed = $this->backupService->restoreSqlBackup($filename);
+        } catch (Throwable $e) {
+            return back()->with('error', 'Restore failed: '.$e->getMessage());
+        }
+
+        $this->audit->log('system.backup_restored', null, null, null, [
+            'file' => $filename,
+            'statements' => $executed,
+        ]);
+
+        return back()->with('success', "Backup [{$filename}] restored ({$executed} SQL statements executed).");
+    }
+
+    public function diagnosticsReport(InstallerService $installer, LicenseService $licenses): JsonResponse
+    {
+        $req = $installer->checkRequirements();
+        $license = $licenses->status();
+
+        $report = [
+            'generated_at' => now()->toIso8601String(),
+            'product' => [
+                'name' => config('product.name'),
+                'version' => config('product.version'),
+                'edition' => config('product.edition'),
+            ],
+            'environment' => [
+                'app_env' => config('app.env'),
+                'app_debug' => (bool) config('app.debug'),
+                'php_version' => PHP_VERSION,
+                'laravel_version' => app()->version(),
+                'db_driver' => config('database.default'),
+                'cache_driver' => config('cache.default'),
+                'queue_driver' => config('queue.default'),
+                'mail_driver' => config('mail.default'),
+                'installed' => $installer->isInstalled(),
+            ],
+            'license' => [
+                'status' => $license['status'],
+                'type' => $license['type'],
+                'domain' => $license['domain'],
+            ],
+            'requirements' => $req['items'],
+        ];
+
+        return response()->json($report, 200, [
+            'Content-Disposition' => 'attachment; filename="diagnostic-report-'.now()->format('Ymd-His').'.json"',
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     }
 }

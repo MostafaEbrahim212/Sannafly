@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
 
 class SettingsService
 {
-    private const CACHE_KEY = 'Sannafly.settings.all';
+    private const CACHE_KEY = 'catalogflow.settings.all';
 
     public function get(string $key, mixed $default = null): mixed
     {
@@ -41,6 +41,33 @@ class SettingsService
         );
 
         Cache::forget(self::CACHE_KEY);
+    }
+
+    /**
+     * Seed a default setting only if it does not already exist so re-running
+     * essential seeders never overwrites customer customizations.
+     */
+    public function seedDefault(string $key, mixed $value, string $group = 'general', string $type = 'string', bool $isPublic = false): void
+    {
+        $storedValue = match ($type) {
+            'boolean' => $value ? '1' : '0',
+            'json' => json_encode($value, JSON_UNESCAPED_UNICODE),
+            default => (string) $value,
+        };
+
+        $created = Setting::query()->firstOrCreate(
+            ['key' => $key],
+            [
+                'group' => $group,
+                'value' => $storedValue,
+                'type' => $type,
+                'is_public' => $isPublic,
+            ]
+        );
+
+        if ($created->wasRecentlyCreated) {
+            Cache::forget(self::CACHE_KEY);
+        }
     }
 
     public function publicSettings(): array

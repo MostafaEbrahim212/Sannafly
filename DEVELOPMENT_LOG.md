@@ -1,15 +1,11 @@
-# Sannafly — Development Log
+# Development Log — Commercial Product Transformation
 
-## Session 1 — 2026-11-25
-- **Temporary Project Name:** `Sannafly` (`C:\laragon\www\Sannafly`)
-- **Completed:**
-  - **Phase 1 (Foundation):** Laravel 13 + Inertia.js + React 19 + TypeScript + Tailwind CSS v4 + Pest + Intervention Image + SimpleXLSX/SimpleXLSXGen. EN/AR localization (`SetLocale` middleware) with LTR/RTL support.
-  - **Phase 2 (Users, RBAC & Security):** Granular RBAC (`roles`, `permissions`, `role_permission`, `user_role`, `user_permission`), `CheckPermission` & `EnsureUserIsActive` & `SecurityHeaders` middleware, rate-limited `AuthController`, User/Role CRUD, `AuditLogger` with sensitive key redaction, Audit Log viewer.
-  - **Phase 3 & 4 (Products, Variations & Inventory):** Nested Categories, Brands, Products, multi-upload `ImageService` (WebP + thumbnails), multi-tier `ProductPrice` (`DECIMAL(15,4)`), `Attribute`/`AttributeOption`, Cartesian `ProductVariation` generator (`combination_hash` deduplication), transactional `InventoryService` (`lockForUpdate()` + `StockMovement`).
-  - **Phase 5 & 6 (Storefront & Dashboard):** Public Homepage, Catalog (server-side search, filters, sorting, pagination), Product Detail (gallery, variation selector, multi-pricing, WhatsApp & inquiry form), Admin Dashboard widgets, Product Management table with bulk actions, Grouped Settings & Module Toggles.
-  - **Phase 7, 8, 9 & 10 (Import/Export, Printing, Customizer, E-Commerce):** CSV/XLSX export (with formula-injection sanitization) & chunked transactional import, dedicated Print views (`catalog`, `price_list`, `stock_report`, `labels`, `product`), Storefront Customizer with live preview, Optional E-Commerce (`CartCheckoutController`, transactional `OrderService` with idempotency & stock reservation/release, `PaymentMethodController`).
-  - **Verification:** `npx tsc --noEmit` (0 errors), `npm run build` (clean Vite production bundle), Pest feature/security test suite executed.
-- **Known Environment Notes:**
-  - Local MySQL service on `localhost:3306` was stopped; SQLite is configured for local dev and isolated `:memory:` testing.
-  - `ext-zip` is not enabled in PHP CLI; `shuchkin/simplexlsx` and `shuchkin/simplexlsxgen` are used for `.xlsx` support.
-  - Playwright browser E2E was not executed in this session.
+## 2026-11-27
+- **Phase 1 — Codebase Audit:** Scanned all source files, seeders, layouts, and config for hardcoded branding (`Sannafly`, `admin@Sannafly.test`, `sannafly@instapay`).
+- **Phase 2 — White-Label & Seeders:** Created `config/product.php`, `EssentialSeeder.php`, updated `DatabaseSeeder.php`, guarded `RbacSeeder.php` test admin behind `app()->runningUnitTests() && ! request()->is('install*')`, added `SettingsService::seedDefault()`, and neutralized all frontend/backend brand defaults.
+- **Phase 3 — Web Installer:** Built `InstallerService.php`, `EnsureNotInstalled.php`, `InstallerController.php`, and 7-step `Installer/Index.tsx` wizard with real server checks, PDO DB test, `.env` backup/writer, migrations, `EssentialSeeder`, Owner creation, and dual installation lock.
+- **Phase 4 — Customizer & Sections:** Added 7 Niche Theme Presets, Homepage Sections ordering (`homepage_sections_order`), Promotional Banner config, unsaved-changes indicator, and Reset confirmation in `Customizer.tsx` + `Home.tsx`.
+- **Phase 5 — Versioning, Update, Restore & Licensing:** Added `DatabaseBackupService::restoreSqlBackup()`, `LicenseService.php` (encrypted payload + 14-day grace period), `UpdateService.php`, and `Admin/License/Index.tsx`.
+- **Phase 6 — Privacy & Diagnostics:** Added `CustomerProfileController::exportData()` & `anonymizeAccount()`, and `SystemToolsController::diagnosticsReport()`.
+- **Phase 7 — Documentation & Packaging:** Created `docs/INSTALLATION_GUIDE.md`, `USER_GUIDE.md`, `PAYMENT_SETUP.md`, `TROUBLESHOOTING.md`, `DEVELOPER_GUIDE.md`, `CHANGELOG.md`, `LICENSE.md`, `scripts/build-release.ps1`, and `commercial-readiness/` reports.
+- **Phase 8 — Testing & Verification:** Verified with `CommercialTransformationTest.php`, Pint, TypeScript, Vitest, Vite build, and full Pest suite.

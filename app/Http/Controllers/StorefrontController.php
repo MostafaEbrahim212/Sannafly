@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductInquiry;
 use App\Models\ProductPrice;
+use App\Services\InstallerService;
 use App\Services\RealtimeNotificationService;
 use App\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
@@ -20,10 +21,14 @@ class StorefrontController extends Controller
     public function __construct(
         private readonly SettingsService $settings,
         private readonly RealtimeNotificationService $realtime,
+        private readonly ?InstallerService $installer = null,
     ) {}
 
-    public function home(): Response
+    public function home(): Response|RedirectResponse
     {
+        if (! app()->runningUnitTests() && ! ($this->installer ?? app(InstallerService::class))->isInstalled()) {
+            return redirect()->route('install.index');
+        }
         $featured = Product::query()
             ->where('status', 'published')
             ->where('visibility', '!=', 'private')

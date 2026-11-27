@@ -3,14 +3,17 @@
 use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\BackupController;
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DemoModeController;
 use App\Http\Controllers\Admin\ImportExportController;
 use App\Http\Controllers\Admin\InquiryController;
 use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\LicenseController;
 use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PaymentMethodController;
@@ -22,8 +25,12 @@ use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\ShippingZoneController;
+use App\Http\Controllers\Admin\SupportExportController;
+use App\Http\Controllers\Admin\SystemHealthController;
 use App\Http\Controllers\Admin\SystemLogController;
 use App\Http\Controllers\Admin\SystemToolsController;
+use App\Http\Controllers\Admin\ThemePresetController;
+use App\Http\Controllers\Admin\UpdateController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\CustomerAuthController;
@@ -31,10 +38,21 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\CartCheckoutController;
 use App\Http\Controllers\CustomerNotificationController;
 use App\Http\Controllers\CustomerProfileController;
+use App\Http\Controllers\InstallerController;
 use App\Http\Controllers\ProductReviewController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\WishlistController;
+use App\Http\Middleware\EnsureNotInstalled;
 use Illuminate\Support\Facades\Route;
+
+// Guided Web Installer (automatically locked once installed)
+Route::prefix('install')->name('install.')->middleware([EnsureNotInstalled::class, 'throttle:30,1'])->group(function () {
+    Route::get('/', [InstallerController::class, 'index'])->name('index');
+    Route::post('/test-db', [InstallerController::class, 'testDatabase'])->name('test-db');
+    Route::post('/save-env', [InstallerController::class, 'saveEnvironment'])->name('save-env');
+    Route::post('/run', [InstallerController::class, 'runInstallation'])->name('run');
+    Route::post('/owner', [InstallerController::class, 'createOwner'])->name('owner');
+});
 
 // Public Storefront
 Route::get('/', [StorefrontController::class, 'home'])->name('home');
@@ -78,6 +96,8 @@ Route::middleware('auth:customer')->group(function () {
     Route::get('/my-orders', [CustomerAuthController::class, 'myOrders'])->name('customer.orders');
     Route::post('/my-orders/{order}/cancel', [CustomerAuthController::class, 'cancelOrder'])->name('customer.orders.cancel');
     Route::get('/profile', [CustomerProfileController::class, 'show'])->name('customer.profile');
+    Route::get('/profile/export-data', [CustomerProfileController::class, 'exportData'])->name('customer.profile.export');
+    Route::post('/profile/anonymize', [CustomerProfileController::class, 'anonymizeAccount'])->name('customer.profile.anonymize');
     Route::put('/profile', [CustomerProfileController::class, 'updateProfile'])->name('customer.profile.update');
     Route::put('/profile/password', [CustomerProfileController::class, 'updatePassword'])->name('customer.profile.password');
     Route::post('/profile/addresses', [CustomerProfileController::class, 'storeAddress'])->name('customer.addresses.store');
@@ -175,16 +195,50 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permissio
     Route::get('/users/export', [UserController::class, 'export'])->middleware('permission:users.view')->name('users.export');
     Route::post('/users', [UserController::class, 'store'])->middleware('permission:users.create')->name('users.store');
     Route::put('/users/{user}', [UserController::class, 'update'])->middleware('permission:users.edit')->name('users.update');
-    Route::delete('/users/{user}', [UserController::class, 'destroy'])->middleware('permission:users.delete')->name('users.destroy');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])->middleware(['permission:users.delete', 'demo.guard'])->name('users.destroy');
     Route::post('/users/{id}/restore', [UserController::class, 'restore'])->middleware('permission:users.edit')->name('users.restore');
 
     Route::get('/roles', [RoleController::class, 'index'])->middleware('permission:users.manage_roles')->name('roles.index');
     Route::post('/roles', [RoleController::class, 'store'])->middleware('permission:users.manage_roles')->name('roles.store');
     Route::put('/roles/{role}', [RoleController::class, 'update'])->middleware('permission:users.manage_roles')->name('roles.update');
-    Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->middleware('permission:users.manage_roles')->name('roles.destroy');
+    Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->middleware(['permission:users.manage_roles', 'demo.guard'])->name('roles.destroy');
 
     // Audit Logs
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->middleware('permission:audit_logs.view')->name('audit-logs.index');
+    Route::get('/system/audit-logs', [AuditLogController::class, 'index'])->middleware('permission:system.audit_logs.view,audit_logs.view')->name('system.audit-logs.index');
+    Route::get('/system/audit-logs/export', [AuditLogController::class, 'export'])->middleware('permission:system.audit_logs.export,audit_logs.view')->name('system.audit-logs.export');
+
+    // System Management Suite (Health, Backups, Updates, License, Support, Demo)
+    Route::get('/system/health', [SystemHealthController::class, 'index'])->middleware('permission:system.health.view,settings.manage')->name('system.health.index');
+    Route::post('/system/health/test-mail', [SystemHealthController::class, 'sendTestMail'])->middleware(['permission:system.health.run,settings.manage', 'demo.guard'])->name('system.health.test-mail');
+
+    Route::get('/system/backups', [BackupController::class, 'index'])->middleware('permission:system.backups.view,settings.manage')->name('system.backups.index');
+    Route::post('/system/backups', [BackupController::class, 'store'])->middleware(['permission:system.backups.create,settings.manage', 'demo.guard'])->name('system.backups.store');
+    Route::post('/system/backups/{backup}/verify', [BackupController::class, 'verify'])->middleware('permission:system.backups.view,settings.manage')->name('system.backups.verify');
+    Route::get('/system/backups/{backup}/download', [BackupController::class, 'download'])->middleware('permission:system.backups.download,settings.manage')->name('system.backups.download');
+    Route::post('/system/backups/{backup}/restore', [BackupController::class, 'restore'])->middleware(['permission:system.backups.restore,settings.manage', 'demo.guard'])->name('system.backups.restore');
+    Route::delete('/system/backups/{backup}', [BackupController::class, 'destroy'])->middleware(['permission:system.backups.delete,settings.manage', 'demo.guard'])->name('system.backups.destroy');
+    Route::post('/system/backups/prune', [BackupController::class, 'prune'])->middleware(['permission:system.backups.delete,settings.manage', 'demo.guard'])->name('system.backups.prune');
+
+    Route::get('/system/updates', [UpdateController::class, 'index'])->middleware('permission:system.updates.view,settings.manage')->name('system.updates.index');
+    Route::post('/system/updates/check', [UpdateController::class, 'check'])->middleware('permission:system.updates.view,settings.manage')->name('system.updates.check');
+    Route::post('/system/updates/execute', [UpdateController::class, 'execute'])->middleware(['permission:system.updates.execute,settings.manage', 'demo.guard'])->name('system.updates.execute');
+
+    Route::get('/system/support', [SupportExportController::class, 'index'])->middleware('permission:system.support.export,settings.manage')->name('system.support.index');
+    Route::post('/system/support/generate', [SupportExportController::class, 'generate'])->middleware('permission:system.support.export,settings.manage')->name('system.support.generate');
+    Route::get('/system/support/{export}/download', [SupportExportController::class, 'download'])->middleware('permission:system.support.export,settings.manage')->name('system.support.download');
+    Route::delete('/system/support/{export}', [SupportExportController::class, 'destroy'])->middleware('permission:system.support.export,settings.manage')->name('system.support.destroy');
+
+    Route::post('/system/demo/toggle', [DemoModeController::class, 'toggle'])->middleware('permission:system.demo.manage,settings.manage')->name('system.demo.toggle');
+    Route::post('/system/demo/reset', [DemoModeController::class, 'reset'])->middleware('permission:system.demo.manage,settings.manage')->name('system.demo.reset');
+
+    // Theme Presets Manager
+    Route::get('/customizer/themes', [ThemePresetController::class, 'index'])->middleware('permission:customizer.themes.view,settings.manage')->name('customizer.themes.index');
+    Route::post('/customizer/themes', [ThemePresetController::class, 'store'])->middleware(['permission:customizer.themes.manage,settings.manage', 'demo.guard'])->name('customizer.themes.store');
+    Route::post('/customizer/themes/{preset}/apply', [ThemePresetController::class, 'apply'])->middleware(['permission:customizer.themes.manage,settings.manage', 'demo.guard'])->name('customizer.themes.apply');
+    Route::get('/customizer/themes/{preset}/export', [ThemePresetController::class, 'export'])->middleware('permission:customizer.themes.view,settings.manage')->name('customizer.themes.export');
+    Route::post('/customizer/themes/import', [ThemePresetController::class, 'import'])->middleware(['permission:customizer.themes.manage,settings.manage', 'demo.guard'])->name('customizer.themes.import');
+    Route::delete('/customizer/themes/{preset}', [ThemePresetController::class, 'destroy'])->middleware(['permission:customizer.themes.manage,settings.manage', 'demo.guard'])->name('customizer.themes.destroy');
 
     // System Logs & Developer/Ops Tools
     Route::get('/system-logs', [SystemLogController::class, 'index'])->middleware('permission:audit_logs.view')->name('system-logs.index');
@@ -193,10 +247,17 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permissio
     Route::delete('/system-logs', [SystemLogController::class, 'destroy'])->middleware('permission:settings.manage')->name('system-logs.destroy');
 
     Route::get('/system-tools', [SystemToolsController::class, 'index'])->middleware('permission:settings.manage')->name('system-tools.index');
-    Route::post('/system-tools/action', [SystemToolsController::class, 'runAction'])->middleware('permission:settings.manage')->name('system-tools.action');
-    Route::post('/system-tools/backup', [SystemToolsController::class, 'createBackup'])->middleware('permission:settings.manage')->name('system-tools.backup.create');
+    Route::post('/system-tools/action', [SystemToolsController::class, 'runAction'])->middleware(['permission:settings.manage', 'demo.guard'])->name('system-tools.action');
+    Route::post('/system-tools/backup', [SystemToolsController::class, 'createBackup'])->middleware(['permission:settings.manage', 'demo.guard'])->name('system-tools.backup.create');
     Route::get('/system-tools/backup/download', [SystemToolsController::class, 'downloadBackup'])->middleware('permission:settings.manage')->name('system-tools.backup.download');
-    Route::delete('/system-tools/backup', [SystemToolsController::class, 'deleteBackup'])->middleware('permission:settings.manage')->name('system-tools.backup.delete');
+    Route::post('/system-tools/backup/restore', [SystemToolsController::class, 'restoreBackup'])->middleware(['permission:settings.manage', 'demo.guard'])->name('system-tools.backup.restore');
+    Route::delete('/system-tools/backup', [SystemToolsController::class, 'deleteBackup'])->middleware(['permission:settings.manage', 'demo.guard'])->name('system-tools.backup.delete');
+    Route::get('/system-tools/diagnostics/download', [SystemToolsController::class, 'diagnosticsReport'])->middleware('permission:settings.manage')->name('system-tools.diagnostics.download');
+
+    Route::get('/license', [LicenseController::class, 'index'])->middleware('permission:system.license.view,settings.manage')->name('license.index');
+    Route::get('/system/license', [LicenseController::class, 'index'])->middleware('permission:system.license.view,settings.manage')->name('system.license.index');
+    Route::post('/license/activate', [LicenseController::class, 'activate'])->middleware(['permission:system.license.manage,settings.manage', 'demo.guard'])->name('license.activate');
+    Route::post('/license/deactivate', [LicenseController::class, 'deactivate'])->middleware(['permission:system.license.manage,settings.manage', 'demo.guard'])->name('license.deactivate');
 
     // Settings, Customizer, Payment Methods
     Route::get('/settings', [SettingsController::class, 'index'])->middleware('permission:settings.view')->name('settings.index');

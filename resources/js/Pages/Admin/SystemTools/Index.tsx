@@ -99,6 +99,18 @@ export default function SystemToolsIndex({ diagnostics, backups }: Props) {
         });
     };
 
+    const restoreBackup = (file: string) => {
+        const msg = isAr
+            ? `تحذير: استعادة النسخة ${file} ستستبدل الجداول الحالية. هل أنت متأكد؟`
+            : `WARNING: Restoring ${file} will overwrite current database tables. Continue?`;
+        if (!confirm(msg)) return;
+        setBusyAction(`restore_${file}`);
+        router.post('/admin/system-tools/backup/restore', { file }, {
+            preserveScroll: true,
+            onFinish: () => setBusyAction(null),
+        });
+    };
+
     const cacheActions = [
         {
             id: 'optimize_clear',
@@ -164,16 +176,25 @@ export default function SystemToolsIndex({ diagnostics, backups }: Props) {
 
             <div className="space-y-6">
                 {/* Header */}
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                        <Wrench className="w-6 h-6 text-teal-600" />
-                        {isAr ? 'أدوات الصيانة والنسخ الاحتياطي (System Tools)' : 'System Tools, Cache & Backups'}
-                    </h1>
-                    <p className="text-sm text-slate-500 mt-1">
-                        {isAr
-                            ? 'إدارة الكاش، النسخ الاحتياطي لقاعدة البيانات والملفات، وضع الصيانة، وفحص صحة السيرفر.'
-                            : 'Manage framework caches, database & storage backups, queue jobs, maintenance mode, and health checks.'}
-                    </p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                            <Wrench className="w-6 h-6 text-teal-600" />
+                            {isAr ? 'أدوات الصيانة والنسخ الاحتياطي (System Tools)' : 'System Tools, Cache & Backups'}
+                        </h1>
+                        <p className="text-sm text-slate-500 mt-1">
+                            {isAr
+                                ? 'إدارة الكاش، النسخ الاحتياطي لقاعدة البيانات والملفات، وضع الصيانة، وفحص صحة السيرفر.'
+                                : 'Manage framework caches, database & storage backups, queue jobs, maintenance mode, and health checks.'}
+                        </p>
+                    </div>
+                    <a
+                        href="/admin/system-tools/diagnostics/download"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
+                    >
+                        <Download className="w-4 h-4 text-teal-600" />
+                        {isAr ? 'تحميل تقرير الدعم الفني' : 'Download Support Diagnostics'}
+                    </a>
                 </div>
 
                 {/* Diagnostics Summary */}
@@ -353,6 +374,17 @@ export default function SystemToolsIndex({ diagnostics, backups }: Props) {
                                                         <Download className="w-3.5 h-3.5" />
                                                         {isAr ? 'تحميل' : 'Download'}
                                                     </a>
+                                                    {b.type === 'database' && (
+                                                        <button
+                                                            type="button"
+                                                            disabled={busyAction !== null}
+                                                            onClick={() => restoreBackup(b.name)}
+                                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 text-xs font-semibold hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                                                        >
+                                                            <RotateCcw className="w-3.5 h-3.5" />
+                                                            {isAr ? 'استعادة' : 'Restore'}
+                                                        </button>
+                                                    )}
                                                     <button
                                                         type="button"
                                                         onClick={() => deleteBackup(b.name)}

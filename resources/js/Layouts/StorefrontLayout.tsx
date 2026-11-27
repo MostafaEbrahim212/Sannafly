@@ -95,7 +95,7 @@ export default function StorefrontLayout({ children }: StorefrontLayoutProps) {
         }
     }, [flash?.success, flash?.error]);
 
-    const siteName = localized(settings.site_name || 'Sannafly', settings.site_name_ar);
+    const siteName = localized(settings.site_name || 'MyStore', settings.site_name_ar);
     const primaryColor = settings.primary_color || '#0f766e';
 
     const handleSearch = (e: React.FormEvent) => {
@@ -110,6 +110,11 @@ export default function StorefrontLayout({ children }: StorefrontLayoutProps) {
 
     return (
         <div dir={dir} className="min-h-screen flex flex-col bg-[var(--cf-bg,#fafbfc)] text-[var(--cf-text,#0f172a)]">
+            {pageProps.demoMode && (
+                <div className="bg-amber-500 text-slate-950 text-xs font-bold text-center py-1.5 px-4">
+                    {locale === 'ar' ? 'نسخة عرض تجريبية (Demo Mode) — البيانات المعروضة لأغراض المعاينة فقط' : 'DEMO PREVIEW MODE — Sample store for preview purposes'}
+                </div>
+            )}
             {/* Customizable Top Announcement / News Bar */}
             {showPromoBar && (
                 <div
@@ -196,7 +201,11 @@ export default function StorefrontLayout({ children }: StorefrontLayoutProps) {
             <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/70 dark:border-slate-800">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between gap-4">
                     <Link href="/" className="flex items-center gap-2.5 shrink-0">
-                        <BrandLogo variant={isDark ? 'dark' : 'light'} customName={siteName} />
+                        <BrandLogo
+                            variant={isDark ? 'dark' : 'light'}
+                            customName={siteName}
+                            logoUrl={isDark ? settings.brand_logo_dark || settings.brand_logo : settings.brand_logo}
+                        />
                     </Link>
 
                     <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-lg relative">
@@ -434,10 +443,38 @@ export default function StorefrontLayout({ children }: StorefrontLayoutProps) {
             <footer className="bg-slate-950 text-slate-300 mt-24 border-t border-slate-900">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10">
                     <div>
-                        <BrandLogo variant="dark" customName={siteName} />
+                        <BrandLogo
+                            variant="dark"
+                            customName={siteName}
+                            logoUrl={settings.brand_logo_dark || settings.brand_logo}
+                        />
                         <p className="text-sm text-slate-400 mt-3 leading-relaxed">
-                            {localized(settings.site_description, settings.site_description_ar)}
+                            {localized(settings.footer_text || settings.site_description, settings.footer_text_ar || settings.site_description_ar)}
                         </p>
+                        {(settings.social_facebook || settings.social_instagram || settings.social_tiktok || settings.social_twitter) && (
+                            <div className="flex flex-wrap gap-2 mt-4 text-xs">
+                                {settings.social_facebook && (
+                                    <a href={settings.social_facebook} target="_blank" rel="noreferrer" className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300">
+                                        Facebook
+                                    </a>
+                                )}
+                                {settings.social_instagram && (
+                                    <a href={settings.social_instagram} target="_blank" rel="noreferrer" className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300">
+                                        Instagram
+                                    </a>
+                                )}
+                                {settings.social_tiktok && (
+                                    <a href={settings.social_tiktok} target="_blank" rel="noreferrer" className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300">
+                                        TikTok
+                                    </a>
+                                )}
+                                {settings.social_twitter && (
+                                    <a href={settings.social_twitter} target="_blank" rel="noreferrer" className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300">
+                                        X
+                                    </a>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-2.5 text-sm">

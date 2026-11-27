@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\DemoModeService;
 use App\Services\SettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -58,6 +59,7 @@ class HandleInertiaRequests extends Middleware
             'adminAlerts' => fn () => $admin ? $this->buildAdminAlerts() : null,
             'adminUnreadNotifications' => fn () => $admin && Schema::hasTable('notifications') ? $admin->unreadNotifications()->count() : 0,
             'customerUnreadNotifications' => fn () => $customer && Schema::hasTable('notifications') ? $customer->unreadNotifications()->count() : 0,
+            'demoMode' => fn () => app(DemoModeService::class)->isEnabled(),
         ];
     }
 

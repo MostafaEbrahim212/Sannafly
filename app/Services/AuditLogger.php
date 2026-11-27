@@ -49,16 +49,20 @@ class AuditLogger
         }
         $request ??= request();
 
+        $eventType = str_contains($action, '.') ? explode('.', $action)[0] : 'system';
         $attributes = [
             'user_id' => $actor?->id,
             'actor_name' => $actor?->name ?? 'System',
             'action' => $action,
+            'event_type' => $eventType,
+            'result' => 'success',
             'resource_type' => $resourceType,
             'resource_id' => $resourceId !== null ? (string) $resourceId : null,
             'old_values' => $oldValues ? $this->sanitize($oldValues) : null,
             'new_values' => $newValues ? $this->sanitize($newValues) : null,
             'ip_address' => $request?->ip(),
             'user_agent' => $request?->userAgent() ? substr((string) $request->userAgent(), 0, 500) : null,
+            'request_id' => $request?->attributes->get('request_id'),
             'created_at' => now(),
         ];
 

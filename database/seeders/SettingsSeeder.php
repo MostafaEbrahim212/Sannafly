@@ -15,16 +15,32 @@ class SettingsSeeder extends Seeder
         $settings = app(SettingsService::class);
 
         $defaults = [
-            // General & Appearance (public)
-            ['general', 'site_name', 'Sannafly', 'string', true],
-            ['general', 'site_name_ar', 'صنّفلي', 'string', true],
-            ['general', 'site_description', 'Categorize. Display. Sell. — Product Catalog & Storefront Platform', 'string', true],
-            ['general', 'site_description_ar', 'صنّف. اعرض. بِع. — منصة احترافية لإدارة وعرض وبيع المنتجات', 'string', true],
-            ['general', 'contact_email', 'hello@sannafly.com', 'string', true],
+            // General & White-Label Branding (public)
+            ['general', 'site_name', 'MyStore', 'string', true],
+            ['general', 'site_name_ar', 'متجري', 'string', true],
+            ['general', 'brand_name', 'MyStore', 'string', true],
+            ['general', 'brand_name_ar', 'متجري', 'string', true],
+            ['general', 'site_description', 'Modern Product Catalog & E-Commerce Storefront', 'string', true],
+            ['general', 'site_description_ar', 'منصة متكاملة لإدارة وعرض وبيع المنتجات', 'string', true],
+            ['general', 'contact_email', 'contact@example.com', 'string', true],
+            ['general', 'support_email', 'support@example.com', 'string', true],
             ['general', 'contact_phone', '+201000000000', 'string', true],
             ['general', 'whatsapp_number', '201000000000', 'string', true],
+            ['general', 'store_address', 'Cairo, Egypt', 'string', true],
+            ['general', 'store_address_ar', 'القاهرة، مصر', 'string', true],
             ['general', 'currency', 'EGP', 'string', true],
             ['general', 'currency_symbol', 'ج.م', 'string', true],
+            ['general', 'brand_logo', '', 'string', true],
+            ['general', 'brand_logo_dark', '', 'string', true],
+            ['general', 'favicon_path', '', 'string', true],
+            ['general', 'footer_text', 'Quality products, transparent pricing, and reliable delivery.', 'string', true],
+            ['general', 'footer_text_ar', 'منتجات مختارة بعناية، أسعار واضحة، وتوصيل موثوق.', 'string', true],
+            ['general', 'copyright_text', 'All rights reserved.', 'string', true],
+            ['general', 'copyright_text_ar', 'جميع الحقوق محفوظة.', 'string', true],
+            ['general', 'social_facebook', '', 'string', true],
+            ['general', 'social_instagram', '', 'string', true],
+            ['general', 'social_tiktok', '', 'string', true],
+            ['general', 'social_twitter', '', 'string', true],
 
             // Appearance / Customization (public)
             ['appearance', 'primary_color', '#0A5C57', 'string', true],
@@ -38,14 +54,38 @@ class SettingsSeeder extends Seeder
             ['appearance', 'hero_subtitle_ar', 'نظّم منتجاتك في أقسام واضحة، واعرضها لعملائك بشكل احترافي، وبِع أسرع.', 'string', true],
             ['appearance', 'show_hero', true, 'boolean', true],
             ['appearance', 'show_featured', true, 'boolean', true],
+            ['appearance', 'show_latest', true, 'boolean', true],
             ['appearance', 'show_categories', true, 'boolean', true],
             ['appearance', 'show_brands', true, 'boolean', true],
+            ['appearance', 'show_banner', false, 'boolean', true],
+            ['appearance', 'banner_title', 'Special Seasonal Offers', 'string', true],
+            ['appearance', 'banner_title_ar', 'عروض موسمية خاصة', 'string', true],
+            ['appearance', 'banner_subtitle', 'Discover curated deals across our top categories.', 'string', true],
+            ['appearance', 'banner_subtitle_ar', 'اكتشف أفضل العروض المختارة عبر أبرز الأقسام.', 'string', true],
+            ['appearance', 'banner_cta_text', 'Explore Deals', 'string', true],
+            ['appearance', 'banner_cta_text_ar', 'تصفح العروض', 'string', true],
+            ['appearance', 'banner_cta_link', '/catalog', 'string', true],
+            ['appearance', 'font_family', 'Inter', 'string', true],
+            ['appearance', 'button_style', 'rounded', 'string', true],
+            ['appearance', 'homepage_sections_order', ['hero', 'categories', 'featured', 'banner', 'latest', 'brands'], 'json', true],
+            ['appearance', 'custom_css', '', 'string', true],
             ['appearance', 'product_grid_columns', 4, 'integer', true],
             ['appearance', 'image_ratio', 'square', 'string', true],
 
-            // Localization
+            // Localization & Formatting
             ['localization', 'default_locale', 'en', 'string', true],
             ['localization', 'enable_arabic', true, 'boolean', true],
+            ['localization', 'timezone', 'Africa/Cairo', 'string', true],
+            ['localization', 'date_format', 'Y-m-d', 'string', true],
+            ['localization', 'number_format', 'standard', 'string', true],
+
+            // Privacy & Compliance
+            ['privacy', 'cookie_consent_enabled', false, 'boolean', true],
+            ['privacy', 'data_retention_days', 365, 'integer', false],
+
+            // System Operations & Demo Mode
+            ['system', 'demo_mode_enabled', false, 'boolean', true],
+            ['system', 'backup_retention_count', 10, 'integer', false],
 
             // Feature / Module Toggles (public)
             ['modules', 'module_ecommerce', true, 'boolean', true],
@@ -72,8 +112,8 @@ class SettingsSeeder extends Seeder
             ['orders', 'unpaid_cod_ttl_minutes', 0, 'integer', false],
 
             // SEO
-            ['seo', 'meta_title', 'Sannafly — صنّفلي | Categorize. Display. Sell.', 'string', true],
-            ['seo', 'meta_description', 'Categorize your products. Display them beautifully. Sell faster.', 'string', true],
+            ['seo', 'meta_title', 'MyStore — Modern Online Store', 'string', true],
+            ['seo', 'meta_description', 'Browse our curated product catalog and order online with fast delivery.', 'string', true],
 
             // Legal Policies (public)
             ['policies', 'policy_privacy', 'We respect your privacy and protect your personal information. Data collected during checkout or account registration is used solely to process orders, provide customer support, and improve your shopping experience. We never sell or share your personal data with unauthorized third parties.', 'string', true],
@@ -82,16 +122,16 @@ class SettingsSeeder extends Seeder
             ['policies', 'policy_terms_ar', 'بإتمامك لأي طلب عبر المتجر، فإنك توافق على تقديم بيانات تواصل وتوصيل صحيحة. تخضع جميع الطلبات لتوفر المخزون، ويحق للمتجر إلغاء أي طلب في حال وجود خطأ تقني في السعر أو اشتباه في بيانات غير صحيحة.', 'string', true],
             ['policies', 'policy_refund', 'You may request a return or exchange within 14 days of delivery provided the item is unused, in its original packaging, and accompanied by the order receipt. Refunds for online payments are processed back to the original payment method within 5-10 business days after inspection.', 'string', true],
             ['policies', 'policy_refund_ar', 'يمكنك طلب الاستبدال أو الاسترجاع خلال 14 يوماً من تاريخ الاستلام بشرط أن يكون المنتج بحالته الأصلية ولم يُستخدم مع وجود فاتورة الطلب. يتم رد المبالغ المدفوعة إلكترونياً خلال 5 إلى 10 أيام عمل بعد فحص المنتج.', 'string', true],
-            ['policies', 'about_title', 'About Sannafly', 'string', true],
-            ['policies', 'about_title_ar', 'عن صنّفلي', 'string', true],
-            ['policies', 'about_body', 'Sannafly is built for modern merchants and shoppers who value clarity, quality, and speed. We organize curated products with transparent pricing, real-time stock, and reliable delivery.', 'string', true],
-            ['policies', 'about_body_ar', 'صنّفلي منصة متكاملة صُممت للتجار والمتسوقين الباحثين عن الوضوح والجودة والسرعة. نعرض منتجات مختارة بعناية مع أسعار واضحة، ومخزون محدث لحظياً، وتوصيل موثوق.', 'string', true],
+            ['policies', 'about_title', 'About Our Store', 'string', true],
+            ['policies', 'about_title_ar', 'عن المتجر', 'string', true],
+            ['policies', 'about_body', 'Our store is built for modern shoppers who value clarity, quality, and speed. We organize curated products with transparent pricing, real-time stock, and reliable delivery.', 'string', true],
+            ['policies', 'about_body_ar', 'متجرنا مصمم لتقديم تجربة تسوق واضحة وسريعة مع منتجات مختارة بعناية، أسعار شفافة، وتوصيل موثوق.', 'string', true],
 
             // Promotions: Announcement / News Bar & Popup (public)
             ['promotions', 'promo_bar_enabled', true, 'boolean', true],
             ['promotions', 'promo_bar_marquee', true, 'boolean', true],
-            ['promotions', 'promo_bar_text', 'Welcome to Sannafly! Use code WELCOME10 for 10% off your first order | Free shipping on orders over $200', 'string', true],
-            ['promotions', 'promo_bar_text_ar', 'أهلاً بك في صنّفلي! استخدم كود WELCOME10 لخصم 10% على أول طلب | شحن مجاني للطلبات فوق 200$', 'string', true],
+            ['promotions', 'promo_bar_text', 'Welcome! Use code WELCOME10 for 10% off your first order | Free shipping on qualifying orders', 'string', true],
+            ['promotions', 'promo_bar_text_ar', 'أهلاً بك! استخدم كود WELCOME10 لخصم 10% على أول طلب | شحن مجاني للطلبات المؤهلة', 'string', true],
             ['promotions', 'promo_bar_bg', '#063F3C', 'string', true],
             ['promotions', 'promo_bar_text_color', '#FFFFFF', 'string', true],
             ['promotions', 'promo_bar_btn_text', 'Shop Now', 'string', true],
@@ -115,7 +155,7 @@ class SettingsSeeder extends Seeder
         ];
 
         foreach ($defaults as [$group, $key, $value, $type, $isPublic]) {
-            $settings->set($key, $value, $group, $type, $isPublic);
+            $settings->seedDefault($key, $value, $group, $type, $isPublic);
         }
 
         // Price Types
@@ -156,10 +196,10 @@ class SettingsSeeder extends Seeder
                 'is_visible' => true,
                 'sort_order' => 2,
                 'config' => [
-                    'bank_name' => 'CIB Egypt',
-                    'account_name' => 'Sannafly Trading LLC',
-                    'account_number' => '100045892341',
-                    'iban' => 'EG380010000100000100045892341',
+                    'bank_name' => 'Bank Name',
+                    'account_name' => 'Store Account Name',
+                    'account_number' => '000000000000',
+                    'iban' => 'EG000000000000000000000000000',
                 ],
             ],
             [
@@ -236,7 +276,7 @@ class SettingsSeeder extends Seeder
                 'is_visible' => true,
                 'sort_order' => 8,
                 'config' => [
-                    'instapay_address' => 'sannafly@instapay',
+                    'instapay_address' => 'store@instapay',
                     'wallet_number' => '01000000000',
                     'instructions' => 'Transfer the order total and upload a screenshot of the receipt.',
                 ],
@@ -244,7 +284,7 @@ class SettingsSeeder extends Seeder
         ];
 
         foreach ($paymentMethods as $pm) {
-            PaymentMethod::query()->updateOrCreate(['code' => $pm['code']], $pm);
+            PaymentMethod::query()->firstOrCreate(['code' => $pm['code']], $pm);
         }
     }
 }

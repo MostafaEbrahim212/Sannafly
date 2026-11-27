@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Customer;
 use App\Models\CustomerAddress;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -133,6 +134,76 @@ class CustomerProfileController extends Controller
         $address->delete();
 
         return back()->with('success', __('Address removed.'));
+    }
+
+    /**
+     * Export authenticated customer's personal data (GDPR-style portability).
+     */
+    public function exportData(): JsonResponse
+    {
+        /** @var Customer $customer */
+        $customer = Auth::guard('customer')->user();
+        $customer->load(['addresses', 'orders.items']);
+
+        $payload = [
+            'exported_at' => now()->toIso8601String(),
+            'profile' => [
+                'name' => $customer->name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'created_at' => $customer->created_at?->toIso8601String(),
+            ],
+            'addresses' => $customer->addresses->toArray(),
+            'orders' => $customer->orders->map(fn ($o) => [
+                'order_number' => $o->order_number,
+                'status' => $o->status,
+                'payment_status' => $o->payment_status,
+                'grand_total' => $o->grand_total,
+                'currency' => $o->currency,
+                'created_at' => $o->created_at?->toIso8601String(),
+            ])->all(),
+        ];
+
+        return response()->json($payload, 200, [
+            'Content-Disposition' => 'attachment; filename="my-personal-data.json"',
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Anonymize and deactivate customer account while preserving order financial records.
+     */
+    public function anonymizeAccount(Request $request): RedirectResponse
+    {
+        $request->validate(['password' => ['required', 'string']]);
+
+        /** @var Customer $customer */
+        $customer = Auth::guard('customer')->user();
+        if (! Hash::check($request->string('password')->toString(), (string) $customer->password)) {
+            return back()->with('error', __('Invalid password.'));
+        }
+
+        DB::transaction(function () use ($customer): void {
+            $customer->addresses()->delete();
+            $customer->wishlists()->delete();
+            $customer->orders()->update([
+                'customer_name' => 'Deleted Customer',
+                'customer_email' => 'anonymized@deleted.invalid',
+                'customer_phone' => '0000000000',
+            ]);
+            $customer->update([
+                'name' => 'Deleted Customer',
+                'email' => "deleted_{$customer->id}_".time().'@deleted.invalid',
+                'phone' => null,
+                'status' => 'inactive',
+            ]);
+            $customer->delete();
+        });
+
+        Auth::guard('customer')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect('/')->with('success', __('Your account and personal data have been anonymized.'));
     }
 
     private function validateAddress(Request $request): array

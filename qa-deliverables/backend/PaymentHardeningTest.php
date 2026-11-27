@@ -1,0 +1,673 @@
+<?php
+
+use App\Models\AuditLog;
+use App\Models\Coupon;
+use App\Models\Order;
+use App\Models\Payment;
+use App\Models\PaymentMethod;
+use App\Models\PriceType;
+use App\Models\Product;
+use App\Models\ProductPrice;
+use App\Services\AuditLogger;
+use App\Services\InventoryService;
+use App\Services\OrderService;
+use App\Services\Payments\FawryGateway;
+use App\Services\Payments\PaymentGatewayManager;
+use App\Services\SettingsService;
+use App\Services\ShippingService;
+use Database\Seeders\RbacSeeder;
+use Database\Seeders\SettingsSeeder;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Support\Facades\Http;
+
+beforeEach(function () {
+    $this->seed([RbacSeeder::class, SettingsSeeder::class]);
+});
+
+/**
+ * Helper: Laravel's PreventRequestForgery middleware skips CSRF checks when
+ * $app->runningUnitTests() is true. To verify real production CSRF behavior in
+ * tests, we bind a subclass that forces runningUnitTests() => false while
+ * preserving $neverVerify (configured by $middleware->validateCsrfTokens).
+ */
+function enableRealCsrfInTest(): void
+{
+    $enforced = new class(app(), app('encrypter')) extends ValidateCsrfToken
+    {
+        protected function runningUnitTests(): bool
+        {
+            return false;
+        }
+    };
+
+    app()->instance(PreventRequestForgery::class, $enforced);
+    app()->instance(ValidateCsrfToken::class, $enforced);
+}
+
+it('enforces CSRF on normal POST routes while excluding payment callbacks', function () {
+    enableRealCsrfInTest();
+
+    $fawry = PaymentMethod::query()->where('driver', 'fawry')->firstOrFail();
+    $fawry->update([
+        'is_active' => true,
+        'config' => ['sandbox' => true, 'merchant_code' => 'M123', 'security_key' => 'SEC456'],
+    ]);
+
+    $order = Order::query()->create([
+        'order_number' => 'ORD-CSRF-1',
+        'customer_name' => 'Test User',
+        'customer_phone' => '01012345678',
+        'payment_method_id' => $fawry->id,
+        'subtotal' => '100.0000',
+        'grand_total' => '100.0000',
+        'currency' => 'EGP',
+    ]);
+    Payment::query()->create([
+        'order_id' => $order->id,
+        'payment_method_id' => $fawry->id,
+        'amount' => '100.0000',
+        'currency' => 'EGP',
+        'status' => 'pending',
+    ]);
+
+    // Normal POST route without CSRF token must be rejected with 419
+    $this->post('/inquiries', [
+        'name' => 'Test',
+        'message' => 'Hello',
+    ])->assertStatus(419);
+
+    // Gateway callback POST route without CSRF token must NOT be blocked by CSRF (419)
+    $sig = hash('sha256', 'FWR-CSRFORD-CSRF-1100.00100.00PAIDPAYATFAWRY998877SEC456');
+    $this->postJson('/payments/callback/fawry', [
+        'fawryRefNumber' => 'FWR-CSRF',
+        'merchantRefNumber' => 'ORD-CSRF-1',
+        'paymentAmount' => '100.00',
+        'orderAmount' => '100.00',
+        'orderStatus' => 'PAID',
+        'paymentMethod' => 'PAYATFAWRY',
+        'paymentRefrenceCode' => '998877',
+        'messageSignature' => $sig,
+    ])->assertOk();
+});
+
+it('does not change order state on paymentReturn when callback verification fails', function () {
+    $fawry = PaymentMethod::query()->where('driver', 'fawry')->firstOrFail();
+    $fawry->update([
+        'is_active' => true,
+        'config' => ['sandbox' => true, 'merchant_code' => 'M123', 'security_key' => 'SEC456'],
+    ]);
+
+    $order = Order::query()->create([
+        'order_number' => 'ORD-RET-1',
+        'customer_name' => 'Test User',
+        'customer_phone' => '01012345678',
+        'payment_method_id' => $fawry->id,
+        'subtotal' => '100.0000',
+        'grand_total' => '100.0000',
+        'currency' => 'EGP',
+    ]);
+
+    $this->get('/payments/return/fawry?order=ORD-RET-1&orderStatus=PAID&messageSignature=forged')
+        ->assertRedirect();
+
+    expect($order->fresh()->payment_status)->toBe('unpaid');
+    expect($order->fresh()->status)->toBe('pending');
+});
+
+it('creates orders with currency from settings (default EGP) and snapshots it against later changes', function () {
+    $regular = PriceType::query()->where('slug', 'regular')->firstOrFail();
+    $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
+
+    $product = Product::query()->create([
+        'name' => 'Coffee Mug',
+        'slug' => 'coffee-mug',
+        'sku' => 'MUG-01',
+        'status' => 'published',
+        'visibility' => 'public',
+        'stock_quantity' => 10,
+        'track_inventory' => true,
+    ]);
+    ProductPrice::query()->create([
+        'product_id' => $product->id,
+        'price_type_id' => $regular->id,
+        'amount' => '100.0000',
+        'currency' => 'EGP',
+        'min_quantity' => 1,
+    ]);
+
+    /** @var SettingsService $settings */
+    $settings = app(SettingsService::class);
+    expect($settings->get('currency'))->toBe('EGP');
+
+    /** @var OrderService $orders */
+    $orders = app(OrderService::class);
+    $order = $orders->placeOrder(
+        ['customer_name' => 'Ali', 'customer_phone' => '01012345678'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id
+    );
+
+    expect($order->currency)->toBe('EGP');
+    expect($order->payments()->first()->currency)->toBe('EGP');
+
+    // Changing settings later must NOT mutate existing order's currency snapshot
+    $settings->set('currency', 'SAR', 'general', 'string', true);
+    expect($order->fresh()->currency)->toBe('EGP');
+});
+
+it('refuses to initiate Fawry payment when order currency is not EGP', function () {
+    Http::fake()->preventStrayRequests();
+
+    $fawry = PaymentMethod::query()->where('driver', 'fawry')->firstOrFail();
+    $fawry->update([
+        'is_active' => true,
+        'config' => ['sandbox' => true, 'merchant_code' => 'M123', 'security_key' => 'SEC456'],
+    ]);
+
+    $order = Order::query()->create([
+        'order_number' => 'ORD-USD-1',
+        'customer_name' => 'Ali',
+        'customer_phone' => '01012345678',
+        'payment_method_id' => $fawry->id,
+        'subtotal' => '100.0000',
+        'grand_total' => '100.0000',
+        'currency' => 'USD',
+    ]);
+
+    /** @var FawryGateway $gateway */
+    $gateway = app(FawryGateway::class);
+    $result = $gateway->initiate($order, $fawry, 'http://localhost/return', 'http://localhost/callback');
+
+    expect($result['success'])->toBeFalse();
+    expect($result['error'])->toContain('EGP');
+});
+
+function makeFawryOrderWithPayment(string $orderNumber, string $grandTotal = '150.0000', string $status = 'pending', string $paymentStatus = 'unpaid', string $currency = 'EGP'): array
+{
+    $fawry = PaymentMethod::query()->where('driver', 'fawry')->firstOrFail();
+    $fawry->update([
+        'is_active' => true,
+        'config' => ['sandbox' => true, 'merchant_code' => 'M123', 'security_key' => 'SEC456'],
+    ]);
+
+    $order = Order::query()->create([
+        'order_number' => $orderNumber,
+        'customer_name' => 'Mona',
+        'customer_phone' => '01099999999',
+        'payment_method_id' => $fawry->id,
+        'status' => $status,
+        'payment_status' => $paymentStatus,
+        'subtotal' => $grandTotal,
+        'grand_total' => $grandTotal,
+        'currency' => $currency,
+    ]);
+    $payment = Payment::query()->create([
+        'order_id' => $order->id,
+        'payment_method_id' => $fawry->id,
+        'amount' => $grandTotal,
+        'currency' => $currency,
+        'status' => $paymentStatus === 'paid' ? 'completed' : 'pending',
+    ]);
+
+    return [$fawry, $order, $payment];
+}
+
+function fawryCallbackPayload(string $orderNumber, string $paymentAmount, string $orderAmount, string $orderStatus = 'PAID'): array
+{
+    $sig = hash('sha256', "FWR-123{$orderNumber}{$paymentAmount}{$orderAmount}{$orderStatus}PAYATFAWRY998877SEC456");
+
+    return [
+        'fawryRefNumber' => 'FWR-123',
+        'merchantRefNumber' => $orderNumber,
+        'paymentAmount' => $paymentAmount,
+        'orderAmount' => $orderAmount,
+        'orderStatus' => $orderStatus,
+        'paymentMethod' => 'PAYATFAWRY',
+        'paymentRefrenceCode' => '998877',
+        'messageSignature' => $sig,
+    ];
+}
+
+it('rejects underpaid Fawry callback, sets amount_mismatch, and writes audit log', function () {
+    [, $order, $payment] = makeFawryOrderWithPayment('ORD-UNDER-1', '150.0000');
+
+    $this->postJson('/payments/callback/fawry', fawryCallbackPayload('ORD-UNDER-1', '100.00', '100.00', 'PAID'))
+        ->assertOk();
+
+    expect($order->fresh()->payment_status)->toBe('amount_mismatch');
+    expect($order->fresh()->status)->toBe('pending');
+    expect($payment->fresh()->status)->toBe('amount_mismatch');
+    expect(AuditLog::query()->where('action', 'payment.amount_mismatch')->where('resource_id', (string) $order->id)->exists())->toBeTrue();
+});
+
+it('rejects overpaid Fawry callback and flags amount_mismatch', function () {
+    [, $order, $payment] = makeFawryOrderWithPayment('ORD-OVER-1', '150.0000');
+
+    $this->postJson('/payments/callback/fawry', fawryCallbackPayload('ORD-OVER-1', '200.00', '200.00', 'PAID'))
+        ->assertOk();
+
+    expect($order->fresh()->payment_status)->toBe('amount_mismatch');
+    expect($order->fresh()->status)->toBe('pending');
+    expect($payment->fresh()->status)->toBe('amount_mismatch');
+});
+
+it('rejects MyFatoorah callback with wrong currency and flags amount_mismatch', function () {
+    $mf = PaymentMethod::query()->where('driver', 'myfatoorah')->firstOrFail();
+    $mf->update(['is_active' => true, 'config' => ['sandbox' => true, 'country' => 'EGY', 'api_key' => 'test-key']]);
+
+    $order = Order::query()->create([
+        'order_number' => 'ORD-MF-CURR',
+        'customer_name' => 'Ali',
+        'customer_phone' => '01012345678',
+        'payment_method_id' => $mf->id,
+        'subtotal' => '200.0000',
+        'grand_total' => '200.0000',
+        'currency' => 'EGP',
+    ]);
+    $payment = Payment::query()->create([
+        'order_id' => $order->id,
+        'payment_method_id' => $mf->id,
+        'amount' => '200.0000',
+        'currency' => 'EGP',
+        'status' => 'pending',
+    ]);
+
+    Http::fake([
+        'https://apitest.myfatoorah.com/v2/GetPaymentStatus' => Http::response([
+            'IsSuccess' => true,
+            'Data' => [
+                'InvoiceId' => 987654,
+                'InvoiceStatus' => 'Paid',
+                'CustomerReference' => 'ORD-MF-CURR',
+                'InvoiceValue' => 200.00,
+                'DisplayCurrencyIso' => 'USD',
+            ],
+        ]),
+    ]);
+
+    $this->postJson('/payments/callback/myfatoorah', ['paymentId' => '112233'])->assertOk();
+
+    expect($order->fresh()->payment_status)->toBe('amount_mismatch');
+    expect($payment->fresh()->status)->toBe('amount_mismatch');
+    expect(AuditLog::query()->where('action', 'payment.amount_mismatch')->where('resource_id', (string) $order->id)->exists())->toBeTrue();
+});
+
+it('does not cancel a paid order when a late failed callback arrives', function () {
+    [, $order, $payment] = makeFawryOrderWithPayment('ORD-OOO-1', '150.0000', 'confirmed', 'paid');
+
+    $this->postJson('/payments/callback/fawry', fawryCallbackPayload('ORD-OOO-1', '150.00', '150.00', 'FAILED'))
+        ->assertOk();
+
+    expect($order->fresh()->payment_status)->toBe('paid');
+    expect($order->fresh()->status)->toBe('confirmed');
+    expect($payment->fresh()->status)->toBe('completed');
+});
+
+it('does not silently confirm a cancelled order when a late completed callback arrives', function () {
+    [, $order, $payment] = makeFawryOrderWithPayment('ORD-OOO-2', '150.0000', 'cancelled', 'unpaid');
+
+    $this->postJson('/payments/callback/fawry', fawryCallbackPayload('ORD-OOO-2', '150.00', '150.00', 'PAID'))
+        ->assertOk();
+
+    expect($order->fresh()->status)->toBe('cancelled');
+    expect($order->fresh()->payment_status)->toBe('needs_review');
+    expect($payment->fresh()->status)->toBe('needs_review');
+    expect(AuditLog::query()->where('action', 'payment.completed_after_cancel')->where('resource_id', (string) $order->id)->exists())->toBeTrue();
+});
+
+it('expires only eligible unpaid online orders and releases stock exactly once', function () {
+    $regular = PriceType::query()->where('slug', 'regular')->firstOrFail();
+    $fawry = PaymentMethod::query()->where('driver', 'fawry')->firstOrFail();
+    $fawry->update(['is_active' => true]);
+    $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
+
+    $product = Product::query()->create([
+        'name' => 'Mouse',
+        'slug' => 'mouse',
+        'sku' => 'MOUSE-1',
+        'status' => 'published',
+        'visibility' => 'public',
+        'stock_quantity' => 10,
+        'track_inventory' => true,
+    ]);
+    ProductPrice::query()->create([
+        'product_id' => $product->id,
+        'price_type_id' => $regular->id,
+        'amount' => '100.0000',
+        'currency' => 'EGP',
+        'min_quantity' => 1,
+    ]);
+
+    /** @var OrderService $orders */
+    $orders = app(OrderService::class);
+
+    // 1. Eligible: unpaid Fawry order created 90 minutes ago
+    $expiredOrder = $orders->placeOrder(
+        ['customer_name' => 'Expired', 'customer_phone' => '01011111111'],
+        [['product_id' => $product->id, 'quantity' => 2]],
+        $fawry->id
+    );
+    Order::query()->where('id', $expiredOrder->id)->update(['created_at' => now()->subMinutes(90)]);
+
+    // 2. Skip: recent unpaid Fawry order (10 minutes ago)
+    $recentOrder = $orders->placeOrder(
+        ['customer_name' => 'Recent', 'customer_phone' => '01022222222'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $fawry->id
+    );
+    Order::query()->where('id', $recentOrder->id)->update(['created_at' => now()->subMinutes(10)]);
+
+    // 3. Skip: old COD order (90 minutes ago)
+    $codOrder = $orders->placeOrder(
+        ['customer_name' => 'COD', 'customer_phone' => '01033333333'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id
+    );
+    Order::query()->where('id', $codOrder->id)->update(['created_at' => now()->subMinutes(90)]);
+
+    // 4. Skip: old paid Fawry order
+    $paidOrder = $orders->placeOrder(
+        ['customer_name' => 'Paid', 'customer_phone' => '01044444444'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $fawry->id
+    );
+    Order::query()->where('id', $paidOrder->id)->update([
+        'created_at' => now()->subMinutes(90),
+        'payment_status' => 'paid',
+        'status' => 'confirmed',
+    ]);
+
+    expect($product->fresh()->stock_quantity)->toBe(5);
+
+    $this->artisan('orders:expire-unpaid')->assertExitCode(0);
+
+    expect($expiredOrder->fresh()->status)->toBe('cancelled');
+    expect($recentOrder->fresh()->status)->toBe('pending');
+    expect($codOrder->fresh()->status)->toBe('pending');
+    expect($paidOrder->fresh()->status)->toBe('confirmed');
+    expect($product->fresh()->stock_quantity)->toBe(7);
+
+    // Running twice must be a no-op
+    $this->artisan('orders:expire-unpaid')->assertExitCode(0);
+    expect($product->fresh()->stock_quantity)->toBe(7);
+});
+
+it('releases coupon used_count when an order is cancelled and never goes below zero', function () {
+    $regular = PriceType::query()->where('slug', 'regular')->firstOrFail();
+    $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
+
+    $product = Product::query()->create([
+        'name' => 'Keyboard',
+        'slug' => 'keyboard',
+        'sku' => 'KB-01',
+        'status' => 'published',
+        'visibility' => 'public',
+        'stock_quantity' => 10,
+        'track_inventory' => true,
+    ]);
+    ProductPrice::query()->create([
+        'product_id' => $product->id,
+        'price_type_id' => $regular->id,
+        'amount' => '200.0000',
+        'currency' => 'EGP',
+        'min_quantity' => 1,
+    ]);
+
+    $coupon = Coupon::query()->create([
+        'code' => 'SAVE20',
+        'name' => 'Save 20',
+        'type' => 'fixed',
+        'value' => '20.0000',
+        'is_active' => true,
+        'usage_limit' => 5,
+        'used_count' => 0,
+    ]);
+
+    /** @var OrderService $orders */
+    $orders = app(OrderService::class);
+    $order = $orders->placeOrder(
+        ['customer_name' => 'Ali', 'customer_phone' => '01012345678'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id,
+        null,
+        'SAVE20'
+    );
+
+    expect($coupon->fresh()->used_count)->toBe(1);
+
+    $orders->cancelOrder($order);
+    expect($coupon->fresh()->used_count)->toBe(0);
+
+    // Even if used_count was already 0, cancelling another order with same coupon_id must not go negative
+    $order2 = Order::query()->create([
+        'order_number' => 'ORD-COUP-ZERO',
+        'customer_name' => 'Ali',
+        'customer_phone' => '01012345678',
+        'payment_method_id' => $cod->id,
+        'coupon_id' => $coupon->id,
+        'coupon_code' => 'SAVE20',
+        'status' => 'pending',
+        'payment_status' => 'unpaid',
+        'subtotal' => '200.0000',
+        'grand_total' => '180.0000',
+        'currency' => 'EGP',
+    ]);
+    $orders->cancelOrder($order2);
+    expect($coupon->fresh()->used_count)->toBe(0);
+});
+
+it('marks paid online order as refund_pending and audits when cancelled without auto-refund', function () {
+    [, $order] = makeFawryOrderWithPayment('ORD-REFUND-1', '150.0000', 'confirmed', 'paid');
+
+    /** @var OrderService $orders */
+    $orders = app(OrderService::class);
+    $orders->cancelOrder($order);
+
+    expect($order->fresh()->status)->toBe('cancelled');
+    expect($order->fresh()->payment_status)->toBe('refund_pending');
+    expect(AuditLog::query()->where('action', 'order.refund_pending')->where('resource_id', (string) $order->id)->exists())->toBeTrue();
+});
+
+it('forbids cancelling an order once it has been shipped', function () {
+    [, $order] = makeFawryOrderWithPayment('ORD-SHIP-1', '150.0000', 'shipped', 'paid');
+
+    /** @var OrderService $orders */
+    $orders = app(OrderService::class);
+
+    expect(fn () => $orders->cancelOrder($order))
+        ->toThrow(RuntimeException::class);
+});
+
+it('scopes idempotency keys to the actor so another actor cannot hijack an order', function () {
+    $regular = PriceType::query()->where('slug', 'regular')->firstOrFail();
+    $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
+
+    $product = Product::query()->create([
+        'name' => 'Headset',
+        'slug' => 'headset',
+        'sku' => 'HEAD-01',
+        'status' => 'published',
+        'visibility' => 'public',
+        'stock_quantity' => 10,
+        'track_inventory' => true,
+    ]);
+    ProductPrice::query()->create([
+        'product_id' => $product->id,
+        'price_type_id' => $regular->id,
+        'amount' => '100.0000',
+        'currency' => 'EGP',
+        'min_quantity' => 1,
+    ]);
+
+    /** @var OrderService $orders */
+    $orders = app(OrderService::class);
+
+    $orderA = $orders->placeOrder(
+        ['customer_name' => 'Actor A', 'customer_phone' => '01011111111'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id,
+        'shared-client-key',
+        null,
+        'customer:1'
+    );
+
+    $orderB = $orders->placeOrder(
+        ['customer_name' => 'Actor B', 'customer_phone' => '01022222222'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id,
+        'shared-client-key',
+        null,
+        'customer:2'
+    );
+
+    expect($orderA->id)->not->toBe($orderB->id);
+    expect($orderA->customer_name)->toBe('Actor A');
+    expect($orderB->customer_name)->toBe('Actor B');
+});
+
+it('handles UniqueConstraintViolationException on idempotency_key race and returns existing order', function () {
+    $regular = PriceType::query()->where('slug', 'regular')->firstOrFail();
+    $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
+
+    $product = Product::query()->create([
+        'name' => 'Webcam',
+        'slug' => 'webcam',
+        'sku' => 'CAM-01',
+        'status' => 'published',
+        'visibility' => 'public',
+        'stock_quantity' => 10,
+        'track_inventory' => true,
+    ]);
+    ProductPrice::query()->create([
+        'product_id' => $product->id,
+        'price_type_id' => $regular->id,
+        'amount' => '100.0000',
+        'currency' => 'EGP',
+        'min_quantity' => 1,
+    ]);
+
+    $scopedKey = hash('sha256', 'customer:99|race-key-2');
+    Order::query()->create([
+        'order_number' => 'ORD-RACE-WIN',
+        'customer_name' => 'Race Winner',
+        'customer_phone' => '01011111111',
+        'payment_method_id' => $cod->id,
+        'subtotal' => '100.0000',
+        'grand_total' => '100.0000',
+        'currency' => 'EGP',
+        'idempotency_key' => $scopedKey,
+    ]);
+
+    // Simulate a true race: pre-check returns null (other worker hasn't committed yet),
+    // then INSERT hits UniqueConstraintViolationException, and catch() re-fetches the winner.
+    $raceService = new class(app(InventoryService::class), app(AuditLogger::class), app(ShippingService::class), app(SettingsService::class), app(PaymentGatewayManager::class)) extends OrderService
+    {
+        private int $calls = 0;
+
+        protected function findExistingByScopedKey(string $scopedKey): ?Order
+        {
+            $this->calls++;
+
+            return $this->calls === 1 ? null : parent::findExistingByScopedKey($scopedKey);
+        }
+    };
+
+    $raced = $raceService->placeOrder(
+        ['customer_name' => 'Race Loser', 'customer_phone' => '01011111111'],
+        [['product_id' => $product->id, 'quantity' => 1]],
+        $cod->id,
+        'race-key-2',
+        null,
+        'customer:99'
+    );
+
+    expect($raced->order_number)->toBe('ORD-RACE-WIN');
+});
+
+it('generates server-side idempotency key in session when client omits it so double-submit creates only one order', function () {
+    $regular = PriceType::query()->where('slug', 'regular')->firstOrFail();
+    $cod = PaymentMethod::query()->where('code', 'cod')->firstOrFail();
+
+    $product = Product::query()->create([
+        'name' => 'Monitor',
+        'slug' => 'monitor',
+        'sku' => 'MON-01',
+        'status' => 'published',
+        'visibility' => 'public',
+        'stock_quantity' => 10,
+        'track_inventory' => true,
+    ]);
+    ProductPrice::query()->create([
+        'product_id' => $product->id,
+        'price_type_id' => $regular->id,
+        'amount' => '500.0000',
+        'currency' => 'EGP',
+        'min_quantity' => 1,
+    ]);
+
+    $this->post('/cart/add', ['product_id' => $product->id, 'quantity' => 1]);
+    $this->get('/cart')->assertOk();
+
+    // First submit without idempotency_key
+    $this->post('/checkout', [
+        'customer_name' => 'Double Submitter',
+        'customer_phone' => '01012345678',
+        'shipping_address' => ['city' => 'Cairo', 'street' => '123 Nile St'],
+        'payment_method_id' => $cod->id,
+    ])->assertRedirect();
+
+    // Second submit without idempotency_key (simulating double-click)
+    $this->post('/checkout', [
+        'customer_name' => 'Double Submitter',
+        'customer_phone' => '01012345678',
+        'shipping_address' => ['city' => 'Cairo', 'street' => '123 Nile St'],
+        'payment_method_id' => $cod->id,
+    ])->assertRedirect();
+
+    expect(Order::query()->count())->toBe(1);
+});
+
+it('verifies MyFatoorah sandbox payment when InvoiceValue is converted to merchant KWD while InvoiceDisplayValue is EGP LE', function () {
+    $mf = PaymentMethod::query()->where('driver', 'myfatoorah')->firstOrFail();
+    $mf->update(['is_active' => true, 'config' => ['sandbox' => true, 'country' => 'EGY', 'api_key' => 'test-key']]);
+
+    $order = Order::query()->create([
+        'order_number' => 'ORD-MF-SANDBOX-LE',
+        'customer_name' => 'Mostafa',
+        'customer_phone' => '01011479294',
+        'payment_method_id' => $mf->id,
+        'subtotal' => '159.0000',
+        'grand_total' => '159.0000',
+        'currency' => 'EGP',
+    ]);
+    Payment::query()->create([
+        'order_id' => $order->id,
+        'payment_method_id' => $mf->id,
+        'amount' => '159.0000',
+        'currency' => 'EGP',
+        'status' => 'pending',
+    ]);
+
+    Http::fake([
+        'https://apitest.myfatoorah.com/v2/GetPaymentStatus' => Http::response([
+            'IsSuccess' => true,
+            'Data' => [
+                'InvoiceId' => 7416400,
+                'InvoiceStatus' => 'Paid',
+                'CustomerReference' => 'ORD-MF-SANDBOX-LE',
+                'InvoiceValue' => 0.942,
+                'InvoiceDisplayValue' => '159.000 LE',
+                'InvoiceTransactions' => [
+                    ['Currency' => 'KD', 'PaidCurrency' => 'KD', 'TransationValue' => '0.942'],
+                ],
+            ],
+        ]),
+    ])->preventStrayRequests();
+
+    $this->get('/payments/return/myfatoorah?paymentId=07077416400398031171')->assertRedirect();
+
+    expect($order->fresh()->payment_status)->toBe('paid');
+    expect($order->fresh()->status)->toBe('confirmed');
+});

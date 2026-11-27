@@ -21,8 +21,8 @@
                 } catch (e) {}
             })();
         </script>
-        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <title inertia>{{ config('app.name', 'Sannafly') }}</title>
+        <link rel="icon" type="image/svg+xml" href="{{ $page['props']['settings']['favicon_path'] ?? '/favicon.svg' }}" />
+        <title inertia>{{ config('app.name', 'MyStore') }}</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link

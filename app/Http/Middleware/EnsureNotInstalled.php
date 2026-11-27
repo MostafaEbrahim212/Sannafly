@@ -1,0 +1,27 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use App\Services\InstallerService;
+use Closure;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+class EnsureNotInstalled
+{
+    public function __construct(private readonly InstallerService $installer) {}
+
+    /**
+     * Block all installer routes once installation is locked/completed.
+     *
+     * @param  Closure(Request): Response  $next
+     */
+    public function handle(Request $request, Closure $next): Response
+    {
+        if ($this->installer->isInstalled()) {
+            abort(404);
+        }
+
+        return $next($request);
+    }
+}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
-import { Check, Copy, Eye, LayoutGrid, Megaphone, Monitor, Moon, Package, Paintbrush, Palette, Smartphone, Sparkles, Sun, Tag, Type, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Copy, Eye, LayoutGrid, Megaphone, Monitor, Moon, Package, Paintbrush, Palette, RotateCcw, Smartphone, Sparkles, Sun, Tag, Type, X } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useTranslation } from '@/lib/i18n';
 import { useColorMode } from '@/lib/colorMode';
@@ -18,9 +18,21 @@ interface ThemePreset {
     previewBg: string;
 }
 
+const NICHE_PRESETS = [
+    { id: 'electronics', name: 'Electronics', nameAr: 'إلكترونيات', primary: '#1d4ed8', accent: '#06b6d4', surface: 'slate', radius: 'rounded', cols: 4, ratio: 'square' },
+    { id: 'fashion', name: 'Fashion', nameAr: 'أزياء وموضة', primary: '#18181b', accent: '#e11d48', surface: 'pure', radius: 'sharp', cols: 3, ratio: 'portrait' },
+    { id: 'cosmetics', name: 'Cosmetics', nameAr: 'مستحضرات تجميل', primary: '#be185d', accent: '#f59e0b', surface: 'warm', radius: 'pill', cols: 4, ratio: 'portrait' },
+    { id: 'general', name: 'General Store', nameAr: 'متجر عام', primary: '#0A5C57', accent: '#F6A21E', surface: 'warm', radius: 'rounded', cols: 4, ratio: 'square' },
+    { id: 'minimal', name: 'Minimal', nameAr: 'بسيط', primary: '#334155', accent: '#0f172a', surface: 'clean', radius: 'sharp', cols: 3, ratio: 'square' },
+    { id: 'modern', name: 'Modern', nameAr: 'عصري', primary: '#4338ca', accent: '#ec4899', surface: 'clean', radius: 'rounded', cols: 4, ratio: 'square' },
+    { id: 'luxury', name: 'Luxury', nameAr: 'فاخر', primary: '#92400e', accent: '#d97706', surface: 'warm', radius: 'sharp', cols: 3, ratio: 'portrait' },
+];
+
+const DEFAULT_SECTIONS_ORDER = ['hero', 'categories', 'featured', 'banner', 'latest', 'brands'];
+
 const THEME_PRESETS: ThemePreset[] = [
     // Light Presets
-    { name: 'Sannafly Petrol', nameAr: 'بترولي صنّفلي', mode: 'light', primary: '#0A5C57', accent: '#F6A21E', text: '#15211F', surface: 'warm', radius: 'rounded', previewBg: '#FAF7F0' },
+    { name: 'Signature Petrol', nameAr: 'بترولي مميز', mode: 'light', primary: '#0A5C57', accent: '#F6A21E', text: '#15211F', surface: 'warm', radius: 'rounded', previewBg: '#FAF7F0' },
     { name: 'Petrol Deep', nameAr: 'بترولي عميق', mode: 'light', primary: '#063F3C', accent: '#109684', text: '#15211F', surface: 'clean', radius: 'rounded', previewBg: '#E9F0ED' },
     { name: 'Royal Indigo', nameAr: 'نيلي ملكي', mode: 'light', primary: '#4338ca', accent: '#ec4899', text: '#1e1b4b', surface: 'clean', radius: 'rounded', previewBg: '#EEF2FF' },
     { name: 'Oceanic Blue', nameAr: 'أزرق محيطي', mode: 'light', primary: '#1d4ed8', accent: '#06b6d4', text: '#0f172a', surface: 'slate', radius: 'rounded', previewBg: '#F1F5F9' },
@@ -55,8 +67,8 @@ export default function Customizer({
         setPreviewDark(isDark);
     }, [isDark]);
 
-    const [siteName, setSiteName] = useState(general.site_name || 'Sannafly');
-    const [siteNameAr, setSiteNameAr] = useState(general.site_name_ar || 'كتالوج فلو');
+    const [siteName, setSiteName] = useState(general.site_name || 'MyStore');
+    const [siteNameAr, setSiteNameAr] = useState(general.site_name_ar || 'متجري');
     const [siteDesc, setSiteDesc] = useState(general.site_description || '');
     const [siteDescAr, setSiteDescAr] = useState(general.site_description_ar || '');
     const [whatsapp, setWhatsapp] = useState(general.whatsapp_number || '');
@@ -72,8 +84,23 @@ export default function Customizer({
     const [heroSubtitleAr, setHeroSubtitleAr] = useState(appearance.hero_subtitle_ar || '');
     const [showHero, setShowHero] = useState(Boolean(appearance.show_hero ?? true));
     const [showFeatured, setShowFeatured] = useState(Boolean(appearance.show_featured ?? true));
+    const [showLatest, setShowLatest] = useState(Boolean(appearance.show_latest ?? true));
     const [showCategories, setShowCategories] = useState(Boolean(appearance.show_categories ?? true));
     const [showBrands, setShowBrands] = useState(Boolean(appearance.show_brands ?? true));
+    const [showBanner, setShowBanner] = useState(Boolean(appearance.show_banner ?? false));
+    const [bannerTitle, setBannerTitle] = useState<string>(appearance.banner_title || 'Special Seasonal Offers');
+    const [bannerTitleAr, setBannerTitleAr] = useState<string>(appearance.banner_title_ar || 'عروض موسمية خاصة');
+    const [bannerSubtitle, setBannerSubtitle] = useState<string>(appearance.banner_subtitle || 'Discover curated deals across our top categories.');
+    const [bannerSubtitleAr, setBannerSubtitleAr] = useState<string>(appearance.banner_subtitle_ar || 'اكتشف أفضل العروض المختارة عبر أبرز الأقسام.');
+    const [bannerCtaText, setBannerCtaText] = useState<string>(appearance.banner_cta_text || 'Explore Deals');
+    const [bannerCtaTextAr, setBannerCtaTextAr] = useState<string>(appearance.banner_cta_text_ar || 'تصفح العروض');
+    const [bannerCtaLink, setBannerCtaLink] = useState<string>(appearance.banner_cta_link || '/catalog');
+    const [sectionsOrder, setSectionsOrder] = useState<string[]>(
+        Array.isArray(appearance.homepage_sections_order) && appearance.homepage_sections_order.length > 0
+            ? appearance.homepage_sections_order
+            : DEFAULT_SECTIONS_ORDER
+    );
+    const [dirty, setDirty] = useState(false);
     const [gridCols, setGridCols] = useState<number>(Number(appearance.product_grid_columns ?? 4));
     const [imageRatio, setImageRatio] = useState<string>(appearance.image_ratio || 'square');
 
@@ -136,8 +163,18 @@ export default function Customizer({
                 { key: 'hero_subtitle_ar', value: heroSubtitleAr, group: 'appearance', type: 'string', is_public: true },
                 { key: 'show_hero', value: showHero, group: 'appearance', type: 'boolean', is_public: true },
                 { key: 'show_featured', value: showFeatured, group: 'appearance', type: 'boolean', is_public: true },
+                { key: 'show_latest', value: showLatest, group: 'appearance', type: 'boolean', is_public: true },
                 { key: 'show_categories', value: showCategories, group: 'appearance', type: 'boolean', is_public: true },
                 { key: 'show_brands', value: showBrands, group: 'appearance', type: 'boolean', is_public: true },
+                { key: 'show_banner', value: showBanner, group: 'appearance', type: 'boolean', is_public: true },
+                { key: 'banner_title', value: bannerTitle, group: 'appearance', type: 'string', is_public: true },
+                { key: 'banner_title_ar', value: bannerTitleAr, group: 'appearance', type: 'string', is_public: true },
+                { key: 'banner_subtitle', value: bannerSubtitle, group: 'appearance', type: 'string', is_public: true },
+                { key: 'banner_subtitle_ar', value: bannerSubtitleAr, group: 'appearance', type: 'string', is_public: true },
+                { key: 'banner_cta_text', value: bannerCtaText, group: 'appearance', type: 'string', is_public: true },
+                { key: 'banner_cta_text_ar', value: bannerCtaTextAr, group: 'appearance', type: 'string', is_public: true },
+                { key: 'banner_cta_link', value: bannerCtaLink, group: 'appearance', type: 'string', is_public: true },
+                { key: 'homepage_sections_order', value: sectionsOrder, group: 'appearance', type: 'json', is_public: true },
                 { key: 'product_grid_columns', value: gridCols, group: 'appearance', type: 'integer', is_public: true },
                 { key: 'image_ratio', value: imageRatio, group: 'appearance', type: 'string', is_public: true },
                 { key: 'promo_bar_enabled', value: promoBarEnabled, group: 'promotions', type: 'boolean', is_public: true },
@@ -436,11 +473,96 @@ export default function Customizer({
                                     </div>
                                 </div>
                                 <div className="space-y-2.5 pt-2 text-sm">
-                                    <label className="flex items-center gap-2.5"><input type="checkbox" checked={showHero} onChange={(e) => setShowHero(e.target.checked)} /> {t('show_hero')}</label>
-                                    <label className="flex items-center gap-2.5"><input type="checkbox" checked={showCategories} onChange={(e) => setShowCategories(e.target.checked)} /> {t('show_categories')}</label>
-                                    <label className="flex items-center gap-2.5"><input type="checkbox" checked={showFeatured} onChange={(e) => setShowFeatured(e.target.checked)} /> {t('show_featured')}</label>
-                                    <label className="flex items-center gap-2.5"><input type="checkbox" checked={showBrands} onChange={(e) => setShowBrands(e.target.checked)} /> {locale === 'ar' ? 'إظهار العلامات التجارية' : 'Show Brands'}</label>
+                                    <label className="flex items-center gap-2.5"><input type="checkbox" checked={showHero} onChange={(e) => { setShowHero(e.target.checked); setDirty(true); }} /> {t('show_hero')}</label>
+                                    <label className="flex items-center gap-2.5"><input type="checkbox" checked={showCategories} onChange={(e) => { setShowCategories(e.target.checked); setDirty(true); }} /> {t('show_categories')}</label>
+                                    <label className="flex items-center gap-2.5"><input type="checkbox" checked={showFeatured} onChange={(e) => { setShowFeatured(e.target.checked); setDirty(true); }} /> {t('show_featured')}</label>
+                                    <label className="flex items-center gap-2.5"><input type="checkbox" checked={showLatest} onChange={(e) => { setShowLatest(e.target.checked); setDirty(true); }} /> {locale === 'ar' ? 'إظهار أحدث المنتجات' : 'Show Latest Products'}</label>
+                                    <label className="flex items-center gap-2.5"><input type="checkbox" checked={showBanner} onChange={(e) => { setShowBanner(e.target.checked); setDirty(true); }} /> {locale === 'ar' ? 'إظهار البانر الترويجي' : 'Show Promotional Banner'}</label>
+                                    <label className="flex items-center gap-2.5"><input type="checkbox" checked={showBrands} onChange={(e) => { setShowBrands(e.target.checked); setDirty(true); }} /> {locale === 'ar' ? 'إظهار العلامات التجارية' : 'Show Brands'}</label>
                                 </div>
+
+                                <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300">
+                                        {locale === 'ar' ? 'قوالب المجالات الجاهزة (Niche Presets)' : 'Industry Niche Presets'}
+                                    </label>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {NICHE_PRESETS.map((np) => (
+                                            <button
+                                                key={np.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setPrimaryColor(np.primary);
+                                                    setAccentColor(np.accent);
+                                                    setThemeSurface(np.surface);
+                                                    setBorderRadius(np.radius);
+                                                    setGridCols(np.cols);
+                                                    setImageRatio(np.ratio);
+                                                    setDirty(true);
+                                                }}
+                                                className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[11px] font-semibold hover:border-teal-500 flex items-center gap-1.5"
+                                            >
+                                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: np.primary }} />
+                                                {locale === 'ar' ? np.nameAr : np.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300">
+                                        {locale === 'ar' ? 'ترتيب أقسام الصفحة الرئيسية' : 'Homepage Sections Order'}
+                                    </label>
+                                    <div className="space-y-1.5">
+                                        {sectionsOrder.map((sec, idx) => (
+                                            <div key={sec} className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+                                                <span className="capitalize">{sec}</span>
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        disabled={idx === 0}
+                                                        onClick={() => {
+                                                            const next = [...sectionsOrder];
+                                                            [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+                                                            setSectionsOrder(next);
+                                                            setDirty(true);
+                                                        }}
+                                                        className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30"
+                                                    >
+                                                        <ArrowUp className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        disabled={idx === sectionsOrder.length - 1}
+                                                        onClick={() => {
+                                                            const next = [...sectionsOrder];
+                                                            [next[idx + 1], next[idx]] = [next[idx], next[idx + 1]];
+                                                            setSectionsOrder(next);
+                                                            setDirty(true);
+                                                        }}
+                                                        className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30"
+                                                    >
+                                                        <ArrowDown className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {showBanner && (
+                                    <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                                        <label className="block text-xs font-bold">{locale === 'ar' ? 'إعدادات البانر الترويجي' : 'Banner Content'}</label>
+                                        <input type="text" placeholder="Banner Title (EN)" value={bannerTitle} onChange={(e) => { setBannerTitle(e.target.value); setDirty(true); }} className="w-full px-3 py-2 rounded-xl border text-xs" />
+                                        <input type="text" dir="rtl" placeholder="عنوان البانر (AR)" value={bannerTitleAr} onChange={(e) => { setBannerTitleAr(e.target.value); setDirty(true); }} className="w-full px-3 py-2 rounded-xl border text-xs" />
+                                        <input type="text" placeholder="Subtitle (EN)" value={bannerSubtitle} onChange={(e) => { setBannerSubtitle(e.target.value); setDirty(true); }} className="w-full px-3 py-2 rounded-xl border text-xs" />
+                                        <input type="text" dir="rtl" placeholder="الوصف (AR)" value={bannerSubtitleAr} onChange={(e) => { setBannerSubtitleAr(e.target.value); setDirty(true); }} className="w-full px-3 py-2 rounded-xl border text-xs" />
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <input type="text" placeholder="CTA (EN)" value={bannerCtaText} onChange={(e) => { setBannerCtaText(e.target.value); setDirty(true); }} className="px-2.5 py-2 rounded-xl border text-xs" />
+                                            <input type="text" dir="rtl" placeholder="زر (AR)" value={bannerCtaTextAr} onChange={(e) => { setBannerCtaTextAr(e.target.value); setDirty(true); }} className="px-2.5 py-2 rounded-xl border text-xs" />
+                                            <input type="text" dir="ltr" placeholder="/catalog" value={bannerCtaLink} onChange={(e) => { setBannerCtaLink(e.target.value); setDirty(true); }} className="px-2.5 py-2 rounded-xl border text-xs font-mono" />
+                                        </div>
+                                    </div>
+                                )}
                             </>
                         )}
 
@@ -632,10 +754,42 @@ export default function Customizer({
                         )}
                     </div>
 
-                    <div className="p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/60">
-                        <button type="submit" className="w-full py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-sm shadow-sm">
-                            {t('publish_appearance')}
-                        </button>
+                    <div className="p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/60 space-y-2">
+                        {dirty && (
+                            <div className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 text-center">
+                                {locale === 'ar' ? 'لديك تغييرات غير محفوظة' : 'You have unsaved changes'}
+                            </div>
+                        )}
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!confirm(locale === 'ar' ? 'استعادة الإعدادات الافتراضية؟' : 'Restore default theme settings?')) return;
+                                    setPrimaryColor('#0A5C57');
+                                    setAccentColor('#F6A21E');
+                                    setTextColor('#15211F');
+                                    setThemeSurface('warm');
+                                    setBorderRadius('rounded');
+                                    setGridCols(4);
+                                    setImageRatio('square');
+                                    setSectionsOrder(DEFAULT_SECTIONS_ORDER);
+                                    setShowHero(true);
+                                    setShowCategories(true);
+                                    setShowFeatured(true);
+                                    setShowLatest(true);
+                                    setShowBrands(true);
+                                    setShowBanner(false);
+                                    setDirty(true);
+                                }}
+                                className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold inline-flex items-center gap-1.5 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                {locale === 'ar' ? 'افتراضي' : 'Reset'}
+                            </button>
+                            <button type="submit" onClick={() => setDirty(false)} className="flex-1 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-sm shadow-sm">
+                                {t('publish_appearance')}
+                            </button>
+                        </div>
                     </div>
                 </form>
 
