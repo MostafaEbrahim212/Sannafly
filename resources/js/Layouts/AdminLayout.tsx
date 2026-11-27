@@ -248,7 +248,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
             )}
 
             <aside
-                className={`no-print fixed inset-y-0 start-0 z-40 bg-slate-950 text-slate-200 border-e border-slate-800/80 flex flex-col transition-all duration-200 lg:static ${
+                className={`no-print fixed inset-y-0 start-0 z-40 bg-slate-950 text-slate-200 border-e border-slate-800/80 flex flex-col transition-all duration-200 lg:sticky lg:top-0 lg:h-screen lg:shrink-0 ${
                     collapsed ? 'lg:w-20 w-72' : 'w-72'
                 } ${sidebarOpen ? 'translate-x-0' : dir === 'rtl' ? 'translate-x-full lg:translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
             >
