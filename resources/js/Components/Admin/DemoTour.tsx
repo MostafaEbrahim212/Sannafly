@@ -80,6 +80,8 @@ const TOUR_STEPS: TourStep[] = [
 ];
 
 const TOUR_DISMISSED_KEY = 'cf_demo_tour_dismissed';
+const TOUR_STEP_KEY = 'cf_demo_tour_step';
+const TOUR_OPEN_KEY = 'cf_demo_tour_open';
 
 export default function DemoTour({
     demoMode,
@@ -91,14 +93,26 @@ export default function DemoTour({
     locale: string;
 }) {
     const isAr = locale === 'ar';
-    const [tourOpen, setTourOpen] = useState(false);
-    const [stepIdx, setStepIdx] = useState(0);
+    const [tourOpen, setTourOpen] = useState<boolean>(() => {
+        if (typeof window === 'undefined') return false;
+        if (sessionStorage.getItem(TOUR_OPEN_KEY) === '1') return true;
+        return false;
+    });
+    const [stepIdx, setStepIdx] = useState<number>(() => {
+        if (typeof window === 'undefined') return 0;
+        const saved = Number(sessionStorage.getItem(TOUR_STEP_KEY));
+        if (Number.isInteger(saved) && saved >= 0 && saved < TOUR_STEPS.length) {
+            return saved;
+        }
+        return 0;
+    });
 
     useEffect(() => {
         if (!demoMode || !isDemoReviewer || typeof window === 'undefined') return;
         const dismissed = sessionStorage.getItem(TOUR_DISMISSED_KEY) === '1';
         if (!dismissed) {
             setTourOpen(true);
+            sessionStorage.setItem(TOUR_OPEN_KEY, '1');
         }
     }, [demoMode, isDemoReviewer]);
 
@@ -110,6 +124,7 @@ export default function DemoTour({
         setTourOpen(false);
         if (typeof window !== 'undefined') {
             sessionStorage.setItem(TOUR_DISMISSED_KEY, '1');
+            sessionStorage.setItem(TOUR_OPEN_KEY, '0');
         }
     };
 
@@ -118,13 +133,23 @@ export default function DemoTour({
         setTourOpen(true);
         if (typeof window !== 'undefined') {
             sessionStorage.removeItem(TOUR_DISMISSED_KEY);
+            sessionStorage.setItem(TOUR_STEP_KEY, '0');
+            sessionStorage.setItem(TOUR_OPEN_KEY, '1');
+            if (window.location.pathname !== TOUR_STEPS[0].href) {
+                router.visit(TOUR_STEPS[0].href);
+            }
         }
     };
 
     const goToStep = (nextIndex: number) => {
         const clamped = Math.max(0, Math.min(TOUR_STEPS.length - 1, nextIndex));
         setStepIdx(clamped);
-        router.visit(TOUR_STEPS[clamped].href, { preserveState: true });
+        if (typeof window !== 'undefined') {
+            sessionStorage.setItem(TOUR_STEP_KEY, String(clamped));
+            sessionStorage.setItem(TOUR_OPEN_KEY, '1');
+            sessionStorage.removeItem(TOUR_DISMISSED_KEY);
+        }
+        router.visit(TOUR_STEPS[clamped].href);
     };
 
     return (
