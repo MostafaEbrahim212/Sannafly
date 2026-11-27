@@ -155,43 +155,43 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permissio
         Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     });
     Route::get('/products/create', [ProductController::class, 'create'])->middleware('permission:products.create')->name('products.create');
-    Route::post('/products', [ProductController::class, 'store'])->middleware('permission:products.create')->name('products.store');
+    Route::post('/products', [ProductController::class, 'store'])->middleware(['permission:products.create', 'demo.guard'])->name('products.store');
     Route::get('/products/{product}/edit', [ProductController::class, 'edit'])->middleware('permission:products.edit')->name('products.edit');
-    Route::match(['put', 'post'], '/products/{product}', [ProductController::class, 'update'])->middleware('permission:products.edit')->name('products.update');
+    Route::match(['put', 'post'], '/products/{product}', [ProductController::class, 'update'])->middleware(['permission:products.edit', 'demo.guard'])->name('products.update');
     Route::delete('/products/{product}', [ProductController::class, 'destroy'])->middleware(['permission:products.delete', 'demo.guard'])->name('products.destroy');
-    Route::post('/products/bulk', [ProductController::class, 'bulkAction'])->middleware('permission:products.edit')->name('products.bulk');
-    Route::post('/products/{product}/variations/generate', [ProductController::class, 'generateVariations'])->middleware('permission:products.edit')->name('products.variations.generate');
-    Route::post('/products/{product}/images/reorder', [ProductController::class, 'reorderImages'])->middleware('permission:products.edit')->name('products.images.reorder');
-    Route::post('/products/{product}/images/{image}/main', [ProductController::class, 'setMainImage'])->middleware('permission:products.edit')->name('products.images.main');
-    Route::delete('/products/{product}/images/{image}', [ProductController::class, 'deleteImage'])->middleware('permission:products.edit')->name('products.images.destroy');
+    Route::post('/products/bulk', [ProductController::class, 'bulkAction'])->middleware(['permission:products.edit', 'demo.guard'])->name('products.bulk');
+    Route::post('/products/{product}/variations/generate', [ProductController::class, 'generateVariations'])->middleware(['permission:products.edit', 'demo.guard'])->name('products.variations.generate');
+    Route::post('/products/{product}/images/reorder', [ProductController::class, 'reorderImages'])->middleware(['permission:products.edit', 'demo.guard'])->name('products.images.reorder');
+    Route::post('/products/{product}/images/{image}/main', [ProductController::class, 'setMainImage'])->middleware(['permission:products.edit', 'demo.guard'])->name('products.images.main');
+    Route::delete('/products/{product}/images/{image}', [ProductController::class, 'deleteImage'])->middleware(['permission:products.edit', 'demo.guard'])->name('products.images.destroy');
 
     // Categories, Brands, Attributes
     Route::get('/categories', [CategoryController::class, 'index'])->middleware('permission:categories.view')->name('categories.index');
-    Route::post('/categories', [CategoryController::class, 'store'])->middleware('permission:categories.manage')->name('categories.store');
-    Route::match(['put', 'post'], '/categories/{category}', [CategoryController::class, 'update'])->middleware('permission:categories.manage')->name('categories.update');
+    Route::post('/categories', [CategoryController::class, 'store'])->middleware(['permission:categories.manage', 'demo.guard'])->name('categories.store');
+    Route::match(['put', 'post'], '/categories/{category}', [CategoryController::class, 'update'])->middleware(['permission:categories.manage', 'demo.guard'])->name('categories.update');
     Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->middleware(['permission:categories.manage', 'demo.guard'])->name('categories.destroy');
 
     Route::get('/brands', [BrandController::class, 'index'])->middleware('permission:brands.manage')->name('brands.index');
-    Route::post('/brands', [BrandController::class, 'store'])->middleware('permission:brands.manage')->name('brands.store');
-    Route::match(['put', 'post'], '/brands/{brand}', [BrandController::class, 'update'])->middleware('permission:brands.manage')->name('brands.update');
+    Route::post('/brands', [BrandController::class, 'store'])->middleware(['permission:brands.manage', 'demo.guard'])->name('brands.store');
+    Route::match(['put', 'post'], '/brands/{brand}', [BrandController::class, 'update'])->middleware(['permission:brands.manage', 'demo.guard'])->name('brands.update');
     Route::delete('/brands/{brand}', [BrandController::class, 'destroy'])->middleware(['permission:brands.manage', 'demo.guard'])->name('brands.destroy');
 
     Route::get('/attributes', [AttributeController::class, 'index'])->middleware('permission:products.edit')->name('attributes.index');
-    Route::post('/attributes', [AttributeController::class, 'store'])->middleware('permission:products.edit')->name('attributes.store');
-    Route::post('/attributes/quick', [AttributeController::class, 'quickStore'])->middleware('permission:products.edit')->name('attributes.quick');
-    Route::post('/attributes/{attribute}/options', [AttributeController::class, 'storeOption'])->middleware('permission:products.edit')->name('attributes.options.store');
-    Route::delete('/attribute-options/{option}', [AttributeController::class, 'destroyOption'])->middleware('permission:products.edit')->name('attributes.options.destroy');
+    Route::post('/attributes', [AttributeController::class, 'store'])->middleware(['permission:products.edit', 'demo.guard'])->name('attributes.store');
+    Route::post('/attributes/quick', [AttributeController::class, 'quickStore'])->middleware(['permission:products.edit', 'demo.guard'])->name('attributes.quick');
+    Route::post('/attributes/{attribute}/options', [AttributeController::class, 'storeOption'])->middleware(['permission:products.edit', 'demo.guard'])->name('attributes.options.store');
+    Route::delete('/attribute-options/{option}', [AttributeController::class, 'destroyOption'])->middleware(['permission:products.edit', 'demo.guard'])->name('attributes.options.destroy');
 
     // Inventory
     Route::get('/inventory', [InventoryController::class, 'index'])->middleware('permission:inventory.view')->name('inventory.index');
-    Route::post('/inventory/{product}/adjust', [InventoryController::class, 'adjust'])->middleware('permission:inventory.manage')->name('inventory.adjust');
+    Route::post('/inventory/{product}/adjust', [InventoryController::class, 'adjust'])->middleware(['permission:inventory.manage', 'demo.guard'])->name('inventory.adjust');
 
     // Import & Export
     Route::get('/import-export', [ImportExportController::class, 'index'])->middleware('permission:products.import,products.export')->name('import-export.index');
     Route::get('/import-export/template/{format?}', [ImportExportController::class, 'downloadTemplate'])->middleware('permission:products.import')->name('import-export.template');
     Route::get('/import-export/export', [ImportExportController::class, 'export'])->middleware('permission:products.export')->name('import-export.export');
     Route::post('/import-export/preview', [ImportExportController::class, 'preview'])->middleware('permission:products.import')->name('import-export.preview');
-    Route::post('/import-export/import', [ImportExportController::class, 'import'])->middleware('permission:products.import')->name('import-export.import');
+    Route::post('/import-export/import', [ImportExportController::class, 'import'])->middleware(['permission:products.import', 'demo.guard'])->name('import-export.import');
     Route::get('/import-export/jobs/{job}/errors', [ImportExportController::class, 'downloadErrors'])->middleware('permission:products.import')->name('import-export.errors');
 
     // Printing
@@ -238,7 +238,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permissio
     Route::delete('/system/support/{export}', [SupportExportController::class, 'destroy'])->middleware('permission:system.support.export,settings.manage')->name('system.support.destroy');
 
     Route::post('/system/demo/toggle', [DemoModeController::class, 'toggle'])->middleware('permission:system.demo.manage,settings.manage')->name('system.demo.toggle');
-    Route::post('/system/demo/reset', [DemoModeController::class, 'reset'])->middleware('permission:system.demo.manage,settings.manage')->name('system.demo.reset');
+    Route::post('/system/demo/reset', [DemoModeController::class, 'reset'])->middleware(['permission:system.demo.manage,settings.manage', 'throttle:5,1'])->name('system.demo.reset');
 
     // Theme Presets Manager
     Route::get('/customizer/themes', [ThemePresetController::class, 'index'])->middleware('permission:customizer.themes.view,settings.manage')->name('customizer.themes.index');
@@ -277,33 +277,33 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permissio
 
     // Coupons & Shipping Zones
     Route::get('/coupons', [CouponController::class, 'index'])->middleware('permission:orders.manage')->name('coupons.index');
-    Route::post('/coupons', [CouponController::class, 'store'])->middleware('permission:orders.manage')->name('coupons.store');
-    Route::put('/coupons/{coupon}', [CouponController::class, 'update'])->middleware('permission:orders.manage')->name('coupons.update');
-    Route::delete('/coupons/{coupon}', [CouponController::class, 'destroy'])->middleware('permission:orders.manage')->name('coupons.destroy');
+    Route::post('/coupons', [CouponController::class, 'store'])->middleware(['permission:orders.manage', 'demo.guard'])->name('coupons.store');
+    Route::put('/coupons/{coupon}', [CouponController::class, 'update'])->middleware(['permission:orders.manage', 'demo.guard'])->name('coupons.update');
+    Route::delete('/coupons/{coupon}', [CouponController::class, 'destroy'])->middleware(['permission:orders.manage', 'demo.guard'])->name('coupons.destroy');
 
     Route::get('/shipping-zones', [ShippingZoneController::class, 'index'])->middleware('permission:settings.manage')->name('shipping-zones.index');
-    Route::post('/shipping-zones', [ShippingZoneController::class, 'store'])->middleware('permission:settings.manage')->name('shipping-zones.store');
-    Route::put('/shipping-zones/{shippingZone}', [ShippingZoneController::class, 'update'])->middleware('permission:settings.manage')->name('shipping-zones.update');
-    Route::delete('/shipping-zones/{shippingZone}', [ShippingZoneController::class, 'destroy'])->middleware('permission:settings.manage')->name('shipping-zones.destroy');
+    Route::post('/shipping-zones', [ShippingZoneController::class, 'store'])->middleware(['permission:settings.manage', 'demo.guard'])->name('shipping-zones.store');
+    Route::put('/shipping-zones/{shippingZone}', [ShippingZoneController::class, 'update'])->middleware(['permission:settings.manage', 'demo.guard'])->name('shipping-zones.update');
+    Route::delete('/shipping-zones/{shippingZone}', [ShippingZoneController::class, 'destroy'])->middleware(['permission:settings.manage', 'demo.guard'])->name('shipping-zones.destroy');
 
     // Orders & Inquiries
     Route::get('/orders', [OrderController::class, 'index'])->middleware('permission:orders.view')->name('orders.index');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->middleware('permission:orders.view')->name('orders.show');
     Route::get('/orders/{order}/invoice', [OrderController::class, 'invoice'])->middleware('permission:orders.view')->name('orders.invoice');
     Route::get('/orders/{order}/label', [OrderController::class, 'shippingLabel'])->middleware('permission:orders.view')->name('orders.label');
-    Route::put('/orders/{order}/status', [OrderController::class, 'updateStatus'])->middleware('permission:orders.manage')->name('orders.status');
+    Route::put('/orders/{order}/status', [OrderController::class, 'updateStatus'])->middleware(['permission:orders.manage', 'demo.guard'])->name('orders.status');
 
     Route::get('/analytics', [AnalyticsController::class, 'index'])->middleware('permission:orders.view')->name('analytics.index');
     Route::get('/analytics/export', [AnalyticsController::class, 'export'])->middleware('permission:orders.view')->name('analytics.export');
     Route::get('/inquiries', [InquiryController::class, 'index'])->middleware('permission:inquiries.manage')->name('inquiries.index');
-    Route::put('/inquiries/{inquiry}/status', [InquiryController::class, 'updateStatus'])->middleware('permission:inquiries.manage')->name('inquiries.status');
+    Route::put('/inquiries/{inquiry}/status', [InquiryController::class, 'updateStatus'])->middleware(['permission:inquiries.manage', 'demo.guard'])->name('inquiries.status');
 
     // Customers, Reviews, Policies & Pages
     Route::get('/customers', [CustomerController::class, 'index'])->middleware('permission:orders.view')->name('customers.index');
-    Route::put('/customers/{customer}/toggle', [CustomerController::class, 'toggleStatus'])->middleware('permission:orders.manage')->name('customers.toggle');
+    Route::put('/customers/{customer}/toggle', [CustomerController::class, 'toggleStatus'])->middleware(['permission:orders.manage', 'demo.guard'])->name('customers.toggle');
     Route::get('/reviews', [ReviewController::class, 'index'])->middleware('permission:products.edit')->name('reviews.index');
-    Route::put('/reviews/{review}/toggle', [ReviewController::class, 'toggleApprove'])->middleware('permission:products.edit')->name('reviews.toggle');
-    Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->middleware('permission:products.edit')->name('reviews.destroy');
+    Route::put('/reviews/{review}/toggle', [ReviewController::class, 'toggleApprove'])->middleware(['permission:products.edit', 'demo.guard'])->name('reviews.toggle');
+    Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->middleware(['permission:products.edit', 'demo.guard'])->name('reviews.destroy');
     Route::get('/policies', [PolicyController::class, 'index'])->middleware('permission:settings.manage')->name('policies.index');
-    Route::post('/policies', [PolicyController::class, 'update'])->middleware('permission:settings.manage')->name('policies.update');
+    Route::post('/policies', [PolicyController::class, 'update'])->middleware(['permission:settings.manage', 'demo.guard'])->name('policies.update');
 });

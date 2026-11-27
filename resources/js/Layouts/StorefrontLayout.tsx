@@ -111,8 +111,17 @@ export default function StorefrontLayout({ children }: StorefrontLayoutProps) {
     return (
         <div dir={dir} className="min-h-screen flex flex-col bg-[var(--cf-bg,#fafbfc)] text-[var(--cf-text,#0f172a)]">
             {pageProps.demoMode && (
-                <div className="bg-amber-500 text-slate-950 text-xs font-bold text-center py-1.5 px-4">
-                    {locale === 'ar' ? 'نسخة عرض تجريبية (Demo Mode) — البيانات المعروضة لأغراض المعاينة فقط' : 'DEMO PREVIEW MODE — Sample store for preview purposes'}
+                <div className="bg-amber-400 text-slate-950 text-xs font-bold py-1.5 px-4">
+                    <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
+                        <span>
+                            {locale === 'ar'
+                                ? 'نسخة عرض تجريبية (Demo Mode) — عمليات الدفع محاكاة بالكامل ولا يتم خصم أي مبالغ حقيقية'
+                                : 'DEMO MODE — Interactive preview with simulated payments (no real charges)'}
+                        </span>
+                        <Link href="/demo" className="underline underline-offset-2 hover:opacity-80">
+                            {locale === 'ar' ? 'بوابة الديمو' : 'Demo Hub'}
+                        </Link>
+                    </div>
                 </div>
             )}
             {/* Customizable Top Announcement / News Bar */}

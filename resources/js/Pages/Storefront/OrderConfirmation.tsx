@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { AlertCircle, CheckCircle2, CreditCard, MapPin, PackageSearch, Printer, RefreshCw, ShoppingBag, Tag, Truck } from 'lucide-react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
 import SeoHead from '@/Components/SeoHead';
@@ -68,6 +68,18 @@ export default function OrderConfirmation({
             <SeoHead title={`${t('order_number')} ${order.order_number}`} noIndex />
 
             <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-6">
+                {Boolean((usePage<any>().props as any).demoMode) && (
+                    <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs sm:text-sm text-amber-900 flex flex-wrap items-center justify-between gap-2">
+                        <span>
+                            {locale === 'ar'
+                                ? 'طلب تجريبي (Demo Order): تمت محاكاة الدفع والطلب لأغراض المعاينة فقط دون أي خصم حقيقي.'
+                                : 'Demo Order: Payment and checkout were simulated for preview purposes with zero real charges.'}
+                        </span>
+                        <Link href="/demo" className="font-bold underline underline-offset-2">
+                            {locale === 'ar' ? 'العودة لبوابة الديمو' : 'Back to Demo Hub'}
+                        </Link>
+                    </div>
+                )}
                 {/* Celebratory / Payment Alert Header */}
                 <div className="bg-white rounded-3xl border border-slate-200/80 p-8 text-center shadow-xs space-y-4">
                     <div

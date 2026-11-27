@@ -444,6 +444,13 @@ export default function Cart({ items, savedAddresses = [], paymentMethods, shipp
                                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
                                     3. {t('payment_methods')}
                                 </label>
+                                {Boolean((usePage<any>().props as any).demoMode) && (
+                                    <div className="mb-2.5 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed">
+                                        {locale === 'ar'
+                                            ? 'محاكاة الدفع في وضع الديمو: لن يتم خصم أي أموال حقيقية ولن يتم الاتصال بأي بوابة دفع خارجية.'
+                                            : 'Demo Payment Simulation: No real money will be charged and no live payment gateway will be contacted.'}
+                                    </div>
+                                )}
                                 <div className="space-y-2">
                                     {paymentMethods.map((pm) => {
                                         const selected = String(form.data.payment_method_id) === String(pm.id);

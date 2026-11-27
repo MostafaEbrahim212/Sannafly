@@ -49,6 +49,7 @@ import { useColorMode } from '@/lib/colorMode';
 import { applyThemeSettings } from '@/lib/theme';
 import { useRealtimeFeed, type RealtimeNotificationItem } from '@/lib/useRealtime';
 import BrandLogo from '@/Components/BrandLogo';
+import DemoTour from '@/Components/Admin/DemoTour';
 import ThemeToggle from '@/Components/ThemeToggle';
 import type { PageProps } from '@/types';
 
@@ -493,13 +494,19 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                     </div>
                 </header>
 
+                <DemoTour
+                    demoMode={Boolean(pageProps.demoMode)}
+                    isDemoReviewer={Boolean(auth.user?.roles?.includes('demo-reviewer'))}
+                    locale={locale}
+                />
+
                 <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
-                    {pageProps.demoMode && (
-                        <div className="no-print mb-5 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs font-semibold flex flex-wrap items-center justify-between gap-2">
+                    {pageProps.demoMode && can('system.demo.manage') && (
+                        <div className="no-print mb-5 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs font-semibold flex flex-wrap items-center justify-between gap-2">
                             <span>
                                 {locale === 'ar'
-                                    ? 'وضع العرض التجريبي (Demo Mode) مفعّل — العمليات الحساسة محمية ومقيدة.'
-                                    : 'Demo Mode Active — Destructive and system-critical operations are restricted.'}
+                                    ? 'تحكم المالك في وضع الديمو: يمكنك إعادة ضبط بيانات الكتالوج التجريبية.'
+                                    : 'Owner Demo Controls: You can reset sample catalog data.'}
                             </span>
                             <button
                                 type="button"

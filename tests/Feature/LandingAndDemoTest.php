@@ -79,3 +79,43 @@ it('blocks sensitive mutations via demo.guard when demo mode is enabled', functi
 
     expect(Product::find($product->id))->not->toBeNull();
 });
+
+it('blocks coupons, shipping zones, policies, and demo reset for demo-reviewer and protects them with demo.guard', function (): void {
+    $this->seed(RbacSeeder::class);
+    $demoService = app(DemoModeService::class);
+    $demoService->setEnabled(true);
+
+    $this->post('/demo/login-admin')->assertRedirect('/admin');
+    $reviewer = auth('web')->user();
+
+    $this->actingAs($reviewer, 'web')->post('/admin/coupons', ['code' => 'HACK'])->assertForbidden();
+    $this->actingAs($reviewer, 'web')->post('/admin/shipping-zones', ['name' => 'Test'])->assertForbidden();
+    $this->actingAs($reviewer, 'web')->post('/admin/policies', [])->assertForbidden();
+    $this->actingAs($reviewer, 'web')->post('/admin/system/demo/reset')->assertForbidden();
+
+    $admin = User::factory()->create(['status' => 'active']);
+    $superAdminRole = Role::where('slug', 'super-admin')->firstOrFail();
+    $admin->roles()->sync([$superAdminRole->id]);
+
+    $this->actingAs($admin, 'web')->post('/admin/coupons', ['code' => 'DEMO10'])->assertForbidden();
+    $this->actingAs($admin, 'web')->post('/admin/policies', [])->assertForbidden();
+});
+
+it('blocks demo reset when demo mode is disabled and works in AR/EN locales', function (): void {
+    $this->seed(RbacSeeder::class);
+    $admin = User::factory()->create(['status' => 'active']);
+    $superAdminRole = Role::where('slug', 'super-admin')->firstOrFail();
+    $admin->roles()->sync([$superAdminRole->id]);
+
+    app(DemoModeService::class)->setEnabled(false);
+
+    $this->actingAs($admin, 'web')
+        ->post('/admin/system/demo/reset')
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    $this->get('/locale/ar')->assertRedirect();
+    $this->get('/demo')->assertOk()->assertInertia(fn ($page) => $page->where('locale', 'ar'));
+    $this->get('/locale/en')->assertRedirect();
+    $this->get('/demo')->assertOk()->assertInertia(fn ($page) => $page->where('locale', 'en'));
+});
