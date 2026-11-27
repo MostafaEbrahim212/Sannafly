@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DemoModeController;
+use App\Http\Controllers\Admin\HelpController;
 use App\Http\Controllers\Admin\ImportExportController;
 use App\Http\Controllers\Admin\InquiryController;
 use App\Http\Controllers\Admin\InventoryController;
@@ -136,6 +137,7 @@ Route::prefix('admin')->group(function () {
 // Secure Admin Dashboard
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permission:dashboard.access'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/help', [HelpController::class, 'index'])->name('help.index');
 
     // Admin Notifications & Realtime Feed
     Route::get('/notifications', [AdminNotificationController::class, 'index'])->name('notifications.index');
