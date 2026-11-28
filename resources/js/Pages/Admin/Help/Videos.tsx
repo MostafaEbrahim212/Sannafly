@@ -14,6 +14,7 @@ import {
     Video,
 } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import VideoPlayer from '@/Components/VideoPlayer';
 import { VIDEO_CATEGORIES, VIDEO_TUTORIALS, type VideoCategory, type VideoTutorial } from '@/data/videoTutorials';
 import { useTranslation } from '@/lib/i18n';
 
@@ -240,11 +241,17 @@ export default function HelpVideos() {
 
                     {/* Real Video Player ONLY when recorded, otherwise clear Script Ready notice */}
                     {activeVideo.status === 'recorded' && activeVideo.videoUrl ? (
-                        <div className="rounded-xl overflow-hidden bg-slate-950 border border-slate-800">
-                            <video key={activeVideo.videoUrl} controls className="w-full max-h-[460px]" poster={activeVideo.screenshot}>
-                                <source src={activeVideo.videoUrl} type={activeVideo.videoUrl.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
-                            </video>
-                        </div>
+                        <VideoPlayer
+                            src={activeVideo.videoUrl}
+                            poster={activeVideo.screenshot}
+                            title={isAr ? activeVideo.title.ar : activeVideo.title.en}
+                            isAr={isAr}
+                            onEnded={() => {
+                                if (!watchedIds.includes(activeVideo.id)) {
+                                    toggleWatched(activeVideo.id);
+                                }
+                            }}
+                        />
                     ) : (
                         <div className="rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 p-5 space-y-2">
                             <div className="flex items-center gap-2 text-amber-900 dark:text-amber-300 font-bold text-sm">
