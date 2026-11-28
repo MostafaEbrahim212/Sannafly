@@ -2,6 +2,7 @@
 
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\Role;
 use App\Models\User;
@@ -83,4 +84,32 @@ it('renders shipping label and product print pages with barcode support', functi
         ->get("/admin/print/products/{$product->id}")
         ->assertOk()
         ->assertInertia(fn ($page) => $page->component('Admin/Print/ProductPrint'));
+});
+
+it('automatically marks COD, store pickup (cash), and offline orders as paid when delivered', function (): void {
+    $this->seed(RbacSeeder::class);
+    $admin = User::factory()->create(['status' => 'active']);
+    $role = Role::where('slug', 'super-admin')->firstOrFail();
+    $admin->roles()->sync([$role->id]);
+
+    foreach (['cod', 'cash', 'wallet_transfer'] as $driver) {
+        $pm = PaymentMethod::firstOrCreate(
+            ['driver' => $driver],
+            ['code' => $driver, 'name' => strtoupper($driver), 'name_ar' => $driver, 'is_active' => true, 'sort_order' => 1]
+        );
+
+        $order = Order::factory()->create([
+            'payment_method_id' => $pm->id,
+            'status' => 'shipped',
+            'payment_status' => 'unpaid',
+        ]);
+
+        $this->actingAs($admin, 'web')
+            ->put("/admin/orders/{$order->id}/status", ['status' => 'delivered'])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        expect($order->fresh()->status)->toBe('delivered')
+            ->and($order->fresh()->payment_status)->toBe('paid');
+    }
 });

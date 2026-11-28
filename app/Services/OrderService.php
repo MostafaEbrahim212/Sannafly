@@ -332,8 +332,17 @@ class OrderService
 
                 $locked->status = $newStatus;
 
-                // Smart Automation: COD / Cash orders are automatically marked Paid upon Delivery
-                if ($newStatus === 'delivered' && $locked->payment_status === 'unpaid' && in_array($locked->paymentMethod?->driver, ['cod', 'cash'], true)) {
+                // Smart Automation: Offline / COD / Store Pickup orders are automatically marked Paid upon Delivery
+                $offlineDrivers = ['cod', 'cash', 'pickup', 'store_pickup', 'in_store', 'pay_at_store', 'bank_transfer', 'wallet_transfer', 'manual', 'offline'];
+                $driver = $locked->paymentMethod?->driver;
+                $isOfflineOrUnassigned = $driver === null || in_array($driver, $offlineDrivers, true) || ! $this->isOnlineGateway($locked);
+
+                if (
+                    $newStatus === 'delivered'
+                    && $paymentStatus === null
+                    && in_array($locked->payment_status, ['unpaid', 'pending_verification'], true)
+                    && $isOfflineOrUnassigned
+                ) {
                     $paymentStatus = 'paid';
                 }
             }
