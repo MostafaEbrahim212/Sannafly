@@ -150,57 +150,65 @@ export default function VideoPlayer({ src, poster, title, isAr = false, onEnded 
         <div
             ref={containerRef}
             dir="ltr"
-            className="group relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-xl select-none"
+            className={`group relative overflow-hidden bg-slate-950 select-none ${
+                isFullscreen
+                    ? 'w-screen h-screen flex flex-col justify-between bg-black'
+                    : 'rounded-2xl border border-slate-800 shadow-xl'
+            }`}
         >
-            <video
-                ref={videoRef}
-                key={resolvedSrc}
-                poster={poster}
-                preload="auto"
-                onClick={togglePlay}
-                onPlay={() => setPlaying(true)}
-                onPause={() => setPlaying(false)}
-                onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
-                onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
-                onDurationChange={() => setDuration(videoRef.current?.duration || 0)}
-                onEnded={() => {
-                    setPlaying(false);
-                    setCompleted(true);
-                    onEnded?.();
-                }}
-                className="w-full max-h-[480px] aspect-video object-contain bg-black cursor-pointer"
-            >
-                <source src={resolvedSrc} type={resolvedSrc.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
-            </video>
-
-            {/* Center Play Overlay when paused */}
-            {!playing && (
-                <button
-                    type="button"
+            <div className={isFullscreen ? 'relative flex-1 min-h-0 flex items-center justify-center bg-black' : 'relative'}>
+                <video
+                    ref={videoRef}
+                    key={resolvedSrc}
+                    poster={poster}
+                    preload="auto"
                     onClick={togglePlay}
-                    aria-label={isAr ? 'تشغيل الفيديو' : 'Play video'}
-                    className="absolute inset-0 flex items-center justify-center bg-slate-950/35 transition-opacity hover:bg-slate-950/45"
+                    onPlay={() => setPlaying(true)}
+                    onPause={() => setPlaying(false)}
+                    onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
+                    onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
+                    onDurationChange={() => setDuration(videoRef.current?.duration || 0)}
+                    onEnded={() => {
+                        setPlaying(false);
+                        setCompleted(true);
+                        onEnded?.();
+                    }}
+                    className={`w-full object-contain bg-black cursor-pointer ${
+                        isFullscreen ? 'h-full max-h-none' : 'max-h-[480px] aspect-video'
+                    }`}
                 >
-                    <span className="w-16 h-16 rounded-full bg-teal-600/95 hover:bg-teal-500 text-white flex items-center justify-center shadow-2xl ring-4 ring-white/20 transition-transform hover:scale-105">
-                        <Play className="w-7 h-7 ms-0.5 fill-current" />
-                    </span>
-                </button>
-            )}
+                    <source src={resolvedSrc} type={resolvedSrc.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
+                </video>
 
-            {/* Top Title Badge */}
-            {title && (
-                <div className="pointer-events-none absolute top-3 start-3 end-3 flex items-center justify-between gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="px-3 py-1 rounded-lg bg-slate-950/75 backdrop-blur text-white text-xs font-semibold truncate">
-                        {title}
-                    </span>
-                    {completed && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600/90 text-white text-[11px] font-bold">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>{isAr ? 'مكتمل' : 'Completed'}</span>
+                {/* Center Play Overlay when paused */}
+                {!playing && (
+                    <button
+                        type="button"
+                        onClick={togglePlay}
+                        aria-label={isAr ? 'تشغيل الفيديو' : 'Play video'}
+                        className="absolute inset-0 flex items-center justify-center bg-slate-950/35 transition-opacity hover:bg-slate-950/45"
+                    >
+                        <span className="w-16 h-16 rounded-full bg-teal-600/95 hover:bg-teal-500 text-white flex items-center justify-center shadow-2xl ring-4 ring-white/20 transition-transform hover:scale-105">
+                            <Play className="w-7 h-7 ms-0.5 fill-current" />
                         </span>
-                    )}
-                </div>
-            )}
+                    </button>
+                )}
+
+                {/* Top Title Badge */}
+                {title && (
+                    <div className="pointer-events-none absolute top-3 start-3 end-3 flex items-center justify-between gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="px-3 py-1 rounded-lg bg-slate-950/75 backdrop-blur text-white text-xs font-semibold truncate">
+                            {title}
+                        </span>
+                        {completed && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600/90 text-white text-[11px] font-bold">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>{isAr ? 'مكتمل' : 'Completed'}</span>
+                            </span>
+                        )}
+                    </div>
+                )}
+            </div>
 
             {/* Custom Controls Bar */}
             <div className="bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent px-4 pt-6 pb-3 space-y-2">
