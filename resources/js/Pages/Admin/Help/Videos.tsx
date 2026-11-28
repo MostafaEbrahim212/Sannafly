@@ -241,8 +241,8 @@ export default function HelpVideos() {
                     {/* Real Video Player ONLY when recorded, otherwise clear Script Ready notice */}
                     {activeVideo.status === 'recorded' && activeVideo.videoUrl ? (
                         <div className="rounded-xl overflow-hidden bg-slate-950 border border-slate-800">
-                            <video key={activeVideo.videoUrl} controls className="w-full max-h-[420px]" poster={activeVideo.screenshot}>
-                                <source src={activeVideo.videoUrl} type="video/webm" />
+                            <video key={activeVideo.videoUrl} controls className="w-full max-h-[460px]" poster={activeVideo.screenshot}>
+                                <source src={activeVideo.videoUrl} type={activeVideo.videoUrl.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
                             </video>
                         </div>
                     ) : (
@@ -272,7 +272,7 @@ export default function HelpVideos() {
                         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
                             {isAr ? 'نص التعليق الصوتي (Narration Script)' : 'Narration Script'}
                         </h3>
-                        <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
+                        <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line max-h-96 overflow-y-auto">
                             {isAr ? activeVideo.script.ar : activeVideo.script.en}
                         </p>
                     </div>

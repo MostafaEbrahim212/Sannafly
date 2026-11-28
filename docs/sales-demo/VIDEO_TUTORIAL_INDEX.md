@@ -1,24 +1,32 @@
-# Video Tutorial Index (20 Structured Lessons)
+# Video Tutorial Index (28 Live Recorded Lessons)
 
-All 20 tutorials are integrated into `/admin/help/videos` (`resources/js/data/videoTutorials.ts`):
+All 28 live MP4 tutorials are integrated into `/admin/help/videos` (`resources/js/data/videoTutorials.ts`) with full Arabic narration scripts in `docs/sales-demo/scripts/`:
 
-1. `vid-01`: Introduction to Sannafly (`/product`, `/`, `/demo`) — 2:15
-2. `vid-02`: Dashboard Overview & Navigation (`/admin`) — 2:00
-3. `vid-03`: Basic Settings & White-Label Identity (`/admin/settings`) — 2:30
-4. `vid-04`: Creating Your First Product (`/admin/products/create`) — 3:30
-5. `vid-05`: Editing Products & Image Galleries (`/admin/products`) — 2:00
-6. `vid-06`: Attributes, Variations & Multi-Tier Pricing (`/admin/attributes`) — 2:30
-7. `vid-07`: Inventory Management & Stock Movements (`/admin/inventory`) — 2:00
-8. `vid-08`: Categories & Brands Organization (`/admin/categories`) — 2:00
-9. `vid-09`: Customer Storefront, Search & Filters (`/catalog`) — 2:30
-10. `vid-10`: Storefront Customizer & Theme Presets (`/admin/customizer`) — 3:00
-11. `vid-11`: Managing Orders, Invoices & Shipping Labels (`/admin/orders`) — 2:45
-12. `vid-12`: Customers, Reviews & Inquiries (`/admin/customers`) — 2:00
-13. `vid-13`: Payment Gateways, Coupons & Shipping Zones (`/admin/payment-methods`) — 2:30
-14. `vid-14`: Checkout Flow & Demo Payment Simulation (`/cart`) — 2:00
-15. `vid-15`: Sales Analytics & CSV Export (`/admin/analytics`) — 2:00
-16. `vid-16`: Bulk Import, Export & Catalog Printing (`/admin/import-export`) — 2:30
-17. `vid-17`: Users, RBAC Roles & Audit Logs (`/admin/roles`) — 2:30
-18. `vid-18`: System Health, Backups, Updates & Licensing (`/admin/system/backups`) — 3:00
-19. `vid-19`: Using Demo Mode & Sales Presentation (`/demo/presentation`) — 2:30
-20. `vid-20`: Installing & Deploying for Real Customers (`/install`) — 3:00
+1. `lesson-01-live.mp4` — مقدمة إلى النظام
+2. `lesson-02-live.mp4` — جولة في لوحة التحكم
+3. `lesson-03-live.mp4` — فهم التنقل في لوحة التحكم
+4. `lesson-04-live.mp4` — إنشاء أول منتج
+5. `lesson-05-live.mp4` — تعديل المنتجات
+6. `lesson-06-live.mp4` — صور المنتج والمعرض
+7. `lesson-07-live.mp4` — التسعير المتعدد والمتغيرات
+8. `lesson-08-live.mp4` — إدارة الأقسام
+9. `lesson-09-live.mp4` — إدارة العلامات التجارية
+10. `lesson-10-live.mp4` — تخصيص المتجر والثيمات
+11. `lesson-11-live.mp4` — إدارة الطلبات ودورة التنفيذ
+12. `lesson-12-live.mp4` — إدارة العملاء والتقييمات والاستفسارات
+13. `lesson-13-live.mp4` — تهيئة طرق الدفع ومناطق الشحن
+14. `lesson-14-live.mp4` — إعدادات النظام والهوية البيضاء
+15. `lesson-15-live.mp4` — استيراد المنتجات
+16. `lesson-16-live.mp4` — تصدير المنتجات والتقارير
+17. `lesson-17-live.mp4` — الطباعة والكتالوج والباركود
+18. `lesson-18-live.mp4` — إدارة المستخدمين والأدوار والصلاحيات
+19. `lesson-19-live.mp4` — فحص صحة النظام والتشخيص
+20. `lesson-20-live.mp4` — إنشاء نسخة احتياطية
+21. `lesson-21-live.mp4` — استعادة نسخة احتياطية
+22. `lesson-22-live.mp4` — إدارة تحديثات النظام
+23. `lesson-23-live.mp4` — إدارة التراخيص التجارية
+24. `lesson-24-live.mp4` — استخدام وضع الديمو والعرض التقديمي
+25. `lesson-25-live.mp4` — مراجعة سجل التدقيق وسجلات النظام
+26. `lesson-26-live.mp4` — حل المشاكل الشائعة
+27. `lesson-27-live.mp4` — تثبيت المنتج (`/install`)
+28. `lesson-28-live.mp4` — تجهيز المنتج لعميل حقيقي

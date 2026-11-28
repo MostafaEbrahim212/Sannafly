@@ -1,8 +1,7 @@
 # Video Production Status Report
 
 ## Summary
-- **Total Structured Tutorials:** 20 (`vid-01` through `vid-20` in `/admin/help/videos`)
-- **Recorded Video Files (`.webm` in `public/docs/videos/`):** **20 / 20 (100%)**
-- **Pending Recordings:** **0**
-
-All 20 tutorials were recorded live against the running application using `node scripts/record-tutorials.mjs` (`1280×720` WebM via Playwright + Edge + Playwright FFmpeg v1013) and are playable directly inside `/admin/help/videos`.
+- **Total Structured Tutorials:** 28 (`lesson-01` through `lesson-28` in `/admin/help/videos`)
+- **Recorded Live Video Files (`.mp4` in `public/docs/videos/`):** **28 / 28 (100%)**
+- **Full Arabic Scripts:** 28 files in `docs/sales-demo/scripts/lesson-01-live-script.md` … `lesson-28-live-script.md`
+- **Pending Recordings / Old `.webm` Files:** **0** (all legacy `.webm` drafts and `.zip` archives removed)
