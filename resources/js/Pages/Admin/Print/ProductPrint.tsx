@@ -1,6 +1,7 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { Printer } from 'lucide-react';
+import BarcodeSvg from '@/Components/BarcodeSvg';
 import { useTranslation } from '@/lib/i18n';
 
 export default function ProductPrint({ product }: { product: any }) {
@@ -29,6 +30,9 @@ export default function ProductPrint({ product }: { product: any }) {
                         <div className="text-xs font-bold uppercase text-teal-700">{localized(settings.site_name, settings.site_name_ar) || 'Sannafly'}</div>
                         <h1 className="text-2xl font-extrabold mt-1">{localized(product.name, product.name_ar)}</h1>
                         <div className="text-xs font-mono text-slate-500 mt-1">{t('sku')}: {product.sku}</div>
+                        <div className="mt-2">
+                            <BarcodeSvg value={product.barcode || product.sku} height={34} />
+                        </div>
                     </div>
                     {product.images?.[0] && (
                         <img src={`/storage/${product.images[0].thumbnail_path || product.images[0].path}`} alt="" className="w-24 h-24 rounded-xl object-cover border" />

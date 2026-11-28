@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\DatabaseBackupService;
 use App\Services\InstallerService;
+use App\Services\LicenseService;
 use App\Services\SettingsService;
 use Database\Seeders\EssentialSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -83,9 +84,9 @@ it('manages commercial license activation, deactivation, diagnostics report, and
         ->assertRedirect()
         ->assertSessionHas('error');
 
-    // Valid key activated
+    // Valid signed key activated
     $this->actingAs($admin, 'web')
-        ->post('/admin/license/activate', ['license_key' => 'CFLW-2026-ABCD-1234', 'type' => 'lifetime'])
+        ->post('/admin/license/activate', ['license_key' => LicenseService::generateSignedKey('lifetime'), 'type' => 'lifetime'])
         ->assertRedirect()
         ->assertSessionHas('success');
 

@@ -9,5 +9,6 @@ return [
     'support_url' => env('PRODUCT_SUPPORT_URL', ''),
     'update_check_url' => env('PRODUCT_UPDATE_URL', ''),
     'license_server_url' => env('LICENSE_SERVER_URL', ''),
+    'license_signing_secret' => env('LICENSE_SIGNING_SECRET', 'sannafly-commercial-license-v2'),
     'license_grace_days' => (int) env('LICENSE_GRACE_DAYS', 14),
 ];

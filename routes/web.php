@@ -302,6 +302,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permissio
 
     // Customers, Reviews, Policies & Pages
     Route::get('/customers', [CustomerController::class, 'index'])->middleware('permission:orders.view')->name('customers.index');
+    Route::get('/customers/{customer}', [CustomerController::class, 'show'])->middleware('permission:orders.view')->name('customers.show');
     Route::put('/customers/{customer}/toggle', [CustomerController::class, 'toggleStatus'])->middleware(['permission:orders.manage', 'demo.guard'])->name('customers.toggle');
     Route::get('/reviews', [ReviewController::class, 'index'])->middleware('permission:products.edit')->name('reviews.index');
     Route::put('/reviews/{review}/toggle', [ReviewController::class, 'toggleApprove'])->middleware(['permission:products.edit', 'demo.guard'])->name('reviews.toggle');

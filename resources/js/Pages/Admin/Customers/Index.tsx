@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Head, router } from '@inertiajs/react';
-import { Heart, MapPin, Search, ShieldBan, ShieldCheck, ShoppingBag, Users } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import { Eye, Heart, MapPin, Search, ShieldBan, ShieldCheck, ShoppingBag, Users } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useTranslation } from '@/lib/i18n';
 
@@ -63,7 +63,9 @@ export default function CustomersIndex({ customers, filters }: { customers: any;
                             customers.data.map((c: any) => (
                                 <tr key={c.id} className="hover:bg-slate-50/70">
                                     <td className="p-3.5">
-                                        <div className="font-bold text-slate-900">{c.name}</div>
+                                        <Link href={`/admin/customers/${c.id}`} className="font-bold text-slate-900 dark:text-slate-100 hover:text-teal-700 hover:underline">
+                                            {c.name}
+                                        </Link>
                                         <div className="text-[11px] text-slate-400">
                                             {new Date(c.created_at).toLocaleDateString()}
                                         </div>
@@ -101,22 +103,31 @@ export default function CustomersIndex({ customers, filters }: { customers: any;
                                         </span>
                                     </td>
                                     <td className="p-3.5 text-end">
-                                        <button
-                                            type="button"
-                                            onClick={() => router.put(`/admin/customers/${c.id}/toggle`, {}, { preserveScroll: true })}
-                                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors ${
-                                                c.status === 'active'
-                                                    ? 'border-rose-200 text-rose-600 hover:bg-rose-50'
-                                                    : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
-                                            }`}
-                                        >
-                                            {c.status === 'active' ? <ShieldBan className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-                                            <span>
-                                                {c.status === 'active'
-                                                    ? locale === 'ar' ? 'إيقاف' : 'Suspend'
-                                                    : locale === 'ar' ? 'تفعيل' : 'Activate'}
-                                            </span>
-                                        </button>
+                                        <div className="inline-flex items-center gap-2">
+                                            <Link
+                                                href={`/admin/customers/${c.id}`}
+                                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
+                                            >
+                                                <Eye className="w-3.5 h-3.5" />
+                                                <span>{locale === 'ar' ? 'التفاصيل' : 'View'}</span>
+                                            </Link>
+                                            <button
+                                                type="button"
+                                                onClick={() => router.put(`/admin/customers/${c.id}/toggle`, {}, { preserveScroll: true })}
+                                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors ${
+                                                    c.status === 'active'
+                                                        ? 'border-rose-200 text-rose-600 hover:bg-rose-50'
+                                                        : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                                                }`}
+                                            >
+                                                {c.status === 'active' ? <ShieldBan className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                                                <span>
+                                                    {c.status === 'active'
+                                                        ? locale === 'ar' ? 'إيقاف' : 'Suspend'
+                                                        : locale === 'ar' ? 'تفعيل' : 'Activate'}
+                                                </span>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))

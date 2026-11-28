@@ -1,6 +1,7 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Printer, Truck } from 'lucide-react';
+import BarcodeSvg from '@/Components/BarcodeSvg';
 import { useTranslation } from '@/lib/i18n';
 
 export default function ShippingLabel({ order }: { order: any }) {
@@ -42,9 +43,14 @@ export default function ShippingLabel({ order }: { order: any }) {
                     </div>
                 </div>
 
-                {order.tracking_number && (
-                    <div className="bg-slate-900 text-white text-center py-2 px-3 rounded font-mono text-sm font-bold tracking-widest">
-                        AWB: {order.tracking_number}
+                {order.tracking_number ? (
+                    <div className="bg-slate-50 border border-slate-300 text-center py-2.5 px-3 rounded-lg space-y-1">
+                        <div className="text-[10px] font-bold uppercase text-slate-500">AWB Tracking Barcode</div>
+                        <BarcodeSvg value={order.tracking_number} height={42} />
+                    </div>
+                ) : (
+                    <div className="bg-slate-50 border border-slate-200 text-center py-2 px-3 rounded-lg">
+                        <BarcodeSvg value={order.order_number} height={38} />
                     </div>
                 )}
 

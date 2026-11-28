@@ -34,6 +34,27 @@ class CustomerController extends Controller
         ]);
     }
 
+    public function show(Customer $customer): Response
+    {
+        $customer->loadCount(['orders', 'addresses', 'wishlists'])
+            ->loadSum('orders as total_spent', 'grand_total');
+
+        $orders = $customer->orders()
+            ->latest('id')
+            ->limit(50)
+            ->get(['id', 'order_number', 'status', 'payment_status', 'grand_total', 'created_at']);
+
+        $addresses = $customer->addresses()->latest('is_default')->get();
+        $wishlists = $customer->wishlists()->with('product:id,name,name_ar,slug,sku')->latest('id')->limit(30)->get();
+
+        return Inertia::render('Admin/Customers/Show', [
+            'customer' => $customer,
+            'orders' => $orders,
+            'addresses' => $addresses,
+            'wishlists' => $wishlists,
+        ]);
+    }
+
     public function toggleStatus(Customer $customer): RedirectResponse
     {
         $newStatus = $customer->status === 'active' ? 'suspended' : 'active';

@@ -80,7 +80,7 @@ class LicenseService
 
         $serverUrl = trim((string) config('product.license_server_url', ''));
         $expiresAt = $type === 'subscription' ? now()->addYear()->toIso8601String() : null;
-        $modeNote = 'Activated in offline/local verification mode (no remote license server configured).';
+        $modeNote = 'Activated with verified offline license signature.';
 
         if ($serverUrl !== '') {
             try {
@@ -100,6 +100,8 @@ class LicenseService
             } catch (Throwable) {
                 return ['ok' => false, 'message' => 'Unable to reach license server. Please try again later.'];
             }
+        } elseif (! $this->verifyOfflineSignature($normalizedKey, $type)) {
+            return ['ok' => false, 'message' => 'Invalid license key signature. Please enter a valid signed key or configure a license server.'];
         }
 
         $this->writePayload([
@@ -115,6 +117,38 @@ class LicenseService
         $this->recordHistory($this->maskKey($normalizedKey), $type, $domain, 'activated', 'active', $modeNote);
 
         return ['ok' => true, 'message' => $modeNote];
+    }
+
+    public static function generateSignedKey(string $type = 'single', ?string $seed = null): string
+    {
+        $normalizedType = in_array($type, self::TYPES, true) ? $type : 'single';
+        $raw = strtoupper(substr(hash('sha256', $seed ?? (string) microtime(true).random_bytes(8)), 0, 12));
+        $segments = str_split($raw, 4);
+        $prefix = implode('-', $segments);
+        $checksum = self::computeSignatureSegment($prefix, $normalizedType);
+
+        return "{$prefix}-{$checksum}";
+    }
+
+    public function verifyOfflineSignature(string $normalizedKey, string $type): bool
+    {
+        $parts = explode('-', strtoupper(trim($normalizedKey)));
+        if (count($parts) < 4) {
+            return false;
+        }
+
+        $provided = array_pop($parts);
+        $prefix = implode('-', $parts);
+        $expected = self::computeSignatureSegment($prefix, $type);
+
+        return hash_equals($expected, $provided);
+    }
+
+    private static function computeSignatureSegment(string $prefix, string $type): string
+    {
+        $secret = (string) config('product.license_signing_secret', 'sannafly-commercial-license-v2');
+
+        return strtoupper(substr(hash_hmac('sha256', "{$type}|{$prefix}", $secret), 0, 4));
     }
 
     public function deactivate(): void
