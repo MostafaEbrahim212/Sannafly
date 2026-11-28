@@ -44,12 +44,16 @@ export default function VideoPlayer({ src, poster, title, isAr = false, onEnded 
     const [speed, setSpeed] = useState(1);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [completed, setCompleted] = useState(false);
+    const [buffering, setBuffering] = useState(false);
+    const [streamError, setStreamError] = useState(false);
 
     useEffect(() => {
         setPlaying(false);
         setCurrentTime(0);
         setDuration(0);
         setCompleted(false);
+        setBuffering(false);
+        setStreamError(false);
         if (videoRef.current) {
             videoRef.current.playbackRate = speed;
         }
@@ -144,6 +148,23 @@ export default function VideoPlayer({ src, poster, title, isAr = false, onEnded 
         ? `/admin/help/videos/stream/${src.split('/').pop()}`
         : src;
 
+    const retryFromCurrentTime = () => {
+        const v = videoRef.current;
+        if (!v) return;
+        const resumeAt = v.currentTime || currentTime || 0;
+        setStreamError(false);
+        setBuffering(true);
+        v.load();
+        const onReady = () => {
+            v.currentTime = resumeAt;
+            v.playbackRate = speed;
+            v.play().catch(() => {});
+            setBuffering(false);
+            v.removeEventListener('loadedmetadata', onReady);
+        };
+        v.addEventListener('loadedmetadata', onReady);
+    };
+
     const progressPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
 
     return (
@@ -161,15 +182,31 @@ export default function VideoPlayer({ src, poster, title, isAr = false, onEnded 
                     ref={videoRef}
                     key={resolvedSrc}
                     poster={poster}
-                    preload="auto"
+                    preload="metadata"
                     onClick={togglePlay}
-                    onPlay={() => setPlaying(true)}
+                    onPlay={() => {
+                        setPlaying(true);
+                        setStreamError(false);
+                    }}
                     onPause={() => setPlaying(false)}
+                    onWaiting={() => setBuffering(true)}
+                    onPlaying={() => {
+                        setBuffering(false);
+                        setStreamError(false);
+                    }}
+                    onCanPlay={() => setBuffering(false)}
+                    onStalled={() => setBuffering(true)}
+                    onError={() => {
+                        setBuffering(false);
+                        setPlaying(false);
+                        setStreamError(true);
+                    }}
                     onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
                     onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
                     onDurationChange={() => setDuration(videoRef.current?.duration || 0)}
                     onEnded={() => {
                         setPlaying(false);
+                        setBuffering(false);
                         setCompleted(true);
                         onEnded?.();
                     }}
@@ -180,8 +217,32 @@ export default function VideoPlayer({ src, poster, title, isAr = false, onEnded 
                     <source src={resolvedSrc} type={resolvedSrc.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
                 </video>
 
+                {buffering && !streamError && (
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/30">
+                        <div className="px-3.5 py-2 rounded-xl bg-slate-950/85 text-white text-xs font-semibold animate-pulse">
+                            {isAr ? 'جاري التحميل...' : 'Buffering...'}
+                        </div>
+                    </div>
+                )}
+
+                {streamError && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950/80 text-white p-4">
+                        <p className="text-xs sm:text-sm font-semibold">
+                            {isAr ? 'توقف البث مؤقتًا' : 'Playback interrupted'}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={retryFromCurrentTime}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-xs font-bold"
+                        >
+                            <RotateCw className="w-3.5 h-3.5" />
+                            <span>{isAr ? 'استكمال من نفس النقطة' : 'Resume Playback'}</span>
+                        </button>
+                    </div>
+                )}
+
                 {/* Center Play Overlay when paused */}
-                {!playing && (
+                {!playing && !streamError && (
                     <button
                         type="button"
                         onClick={togglePlay}

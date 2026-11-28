@@ -45,9 +45,15 @@ class HelpController extends Controller
         ];
 
         $range = $request->header('Range');
+        $maxOpenEndChunk = 2 * 1024 * 1024; // 2 MB per open-ended range request to prevent blocking
+
         if ($range && preg_match('/bytes=(\d*)-(\d*)/', $range, $matches)) {
             $start = $matches[1] !== '' ? (int) $matches[1] : 0;
-            $end = $matches[2] !== '' ? min((int) $matches[2], $size - 1) : $size - 1;
+            if ($matches[2] !== '') {
+                $end = min((int) $matches[2], $size - 1);
+            } else {
+                $end = min($start + $maxOpenEndChunk - 1, $size - 1);
+            }
 
             if ($start > $end || $start >= $size) {
                 abort(416, 'Requested Range Not Satisfiable');
@@ -60,6 +66,14 @@ class HelpController extends Controller
         $length = $end - $start + 1;
         $headers['Content-Length'] = (string) $length;
 
+        // Release session lock immediately so parallel requests (realtime feed / range seeks) never stall
+        if ($request->hasSession()) {
+            $request->session()->save();
+        }
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
         return response()->stream(function () use ($path, $start, $length) {
             $handle = fopen($path, 'rb');
             if (! $handle) {
@@ -67,7 +81,7 @@ class HelpController extends Controller
             }
             fseek($handle, $start);
             $remaining = $length;
-            while ($remaining > 0 && ! feof($handle)) {
+            while ($remaining > 0 && ! feof($handle) && ! connection_aborted()) {
                 $chunk = fread($handle, min(65536, $remaining));
                 if ($chunk === false) {
                     break;
@@ -75,9 +89,9 @@ class HelpController extends Controller
                 echo $chunk;
                 $remaining -= strlen($chunk);
                 if (ob_get_level() > 0) {
-                    ob_flush();
+                    @ob_flush();
                 }
-                flush();
+                @flush();
             }
             fclose($handle);
         }, $status, $headers);
