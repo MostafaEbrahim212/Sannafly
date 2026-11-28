@@ -140,6 +140,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'active', 'permissio
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/help', [HelpController::class, 'index'])->name('help.index');
     Route::get('/help/videos', [HelpController::class, 'videos'])->name('help.videos');
+    Route::get('/help/videos/stream/{filename}', [HelpController::class, 'streamVideo'])->name('help.videos.stream');
 
     // Admin Notifications & Realtime Feed
     Route::get('/notifications', [AdminNotificationController::class, 'index'])->name('notifications.index');

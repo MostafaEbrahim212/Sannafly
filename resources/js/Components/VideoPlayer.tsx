@@ -140,6 +140,10 @@ export default function VideoPlayer({ src, poster, title, isAr = false, onEnded 
         }
     };
 
+    const resolvedSrc = src.startsWith('/docs/videos/')
+        ? `/admin/help/videos/stream/${src.split('/').pop()}`
+        : src;
+
     const progressPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
 
     return (
@@ -150,14 +154,15 @@ export default function VideoPlayer({ src, poster, title, isAr = false, onEnded 
         >
             <video
                 ref={videoRef}
-                key={src}
+                key={resolvedSrc}
                 poster={poster}
-                preload="metadata"
+                preload="auto"
                 onClick={togglePlay}
                 onPlay={() => setPlaying(true)}
                 onPause={() => setPlaying(false)}
                 onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
                 onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
+                onDurationChange={() => setDuration(videoRef.current?.duration || 0)}
                 onEnded={() => {
                     setPlaying(false);
                     setCompleted(true);
@@ -165,7 +170,7 @@ export default function VideoPlayer({ src, poster, title, isAr = false, onEnded 
                 }}
                 className="w-full max-h-[480px] aspect-video object-contain bg-black cursor-pointer"
             >
-                <source src={src} type={src.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
+                <source src={resolvedSrc} type={resolvedSrc.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
             </video>
 
             {/* Center Play Overlay when paused */}

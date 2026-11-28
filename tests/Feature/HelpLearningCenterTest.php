@@ -32,4 +32,10 @@ it('renders the interactive Learning Center at /admin/help for authorized staff'
         ->get('/admin/help/videos')
         ->assertOk()
         ->assertInertia(fn ($page) => $page->component('Admin/Help/Videos'));
+
+    $this->actingAs($admin, 'web')
+        ->withHeaders(['Range' => 'bytes=0-1023'])
+        ->get('/admin/help/videos/stream/lesson-01-live.mp4')
+        ->assertStatus(206)
+        ->assertHeader('Accept-Ranges', 'bytes');
 });
